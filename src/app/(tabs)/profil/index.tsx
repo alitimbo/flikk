@@ -358,6 +358,7 @@ export default function ProfilIndex() {
           <MediaPicker
             isVisible={showMediaPicker}
             onClose={() => setShowMediaPicker(false)}
+            mediaTypes={['photo']}
             onSelect={(uri, type) => {
               if (type === "video") {
                 setErrorMessage(t("mediaPicker.errorInvalidFormat"));
