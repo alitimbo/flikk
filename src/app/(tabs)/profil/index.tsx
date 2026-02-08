@@ -6,6 +6,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Switch,
   Text,
   TextInput,
   View,
@@ -15,11 +16,15 @@ import type { FirebaseAuthTypes } from "@react-native-firebase/auth";
 import { FirebaseService } from "@/services/firebase/firebase-service";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
+import { MediaPicker } from "@/components/ui/MediaPicker";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 export default function ProfilIndex() {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const [authUser, setAuthUser] = useState<FirebaseAuthTypes.User | null>(null);
+
+  // Login State
   const [phoneNumber, setPhoneNumber] = useState("");
   const [smsCode, setSmsCode] = useState("");
   const [confirmation, setConfirmation] =
@@ -29,7 +34,29 @@ export default function ProfilIndex() {
   const [resendSeconds, setResendSeconds] = useState(0);
   const [countryIndex, setCountryIndex] = useState(0);
   const [showCountryList, setShowCountryList] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const resendTimer = useRef<NodeJS.Timeout | null>(null);
+
+  // Profile Data Hook
+  const {
+    data: userProfile,
+    updateProfile,
+    uploadLogo,
+    isUpdating,
+    isLoading: isProfileLoading,
+  } = useUserProfile(authUser?.uid);
+
+  // Completion Form State
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [isMerchant, setIsMerchant] = useState(false);
+  const [businessName, setBusinessName] = useState("");
+  const [taxId, setTaxId] = useState("");
+  const [address, setAddress] = useState("");
+  const [businessPhone, setBusinessPhone] = useState("");
+  const [logoUri, setLogoUri] = useState<string | null>(null);
+  const [showMediaPicker, setShowMediaPicker] = useState(false);
 
   const COUNTRIES = useMemo(
     () => [
@@ -45,6 +72,23 @@ export default function ProfilIndex() {
     });
     return unsubscribe;
   }, []);
+
+  // Pre-fill form if data exists (for editing later, though currently we only show on incomplete)
+  useEffect(() => {
+    if (userProfile) {
+      setFirstName(userProfile.firstName || "");
+      setLastName(userProfile.lastName || "");
+      setEmail(userProfile.email || "");
+      setIsMerchant(userProfile.isMerchant || false);
+      if (userProfile.merchantInfo) {
+        setBusinessName(userProfile.merchantInfo.businessName || "");
+        setTaxId(userProfile.merchantInfo.taxId || "");
+        setAddress(userProfile.merchantInfo.address || "");
+        setBusinessPhone(userProfile.merchantInfo.businessPhone || "");
+        setLogoUri(userProfile.merchantInfo.logoUrl || null);
+      }
+    }
+  }, [userProfile]);
 
   useEffect(() => {
     if (resendSeconds <= 0) {
@@ -77,8 +121,8 @@ export default function ProfilIndex() {
         await FirebaseService.auth.signInWithPhoneNumber(fullPhone);
       setConfirmation(result);
       setResendSeconds(30);
-    } catch (_error) {
-      console.log(_error);
+    } catch {
+      console.log("Error sending code");
       setErrorMessage(t("profile.login.errorSend"));
     } finally {
       setIsLoading(false);
@@ -102,7 +146,221 @@ export default function ProfilIndex() {
     await FirebaseService.auth.signOut();
   }, []);
 
+  const handleSaveProfile = async () => {
+    if (!authUser || !firstName || !lastName) return;
+
+    try {
+      let finalLogoUrl = logoUri;
+
+      // Upload logo if it's a local URI (not already an HTTP URL)
+      if (logoUri && !logoUri.startsWith("http")) {
+        finalLogoUrl = await uploadLogo(logoUri);
+      }
+
+      await updateProfile({
+        uid: authUser.uid,
+        phoneNumber: authUser.phoneNumber || "",
+        firstName,
+        lastName,
+        email,
+        isMerchant,
+        role: isMerchant ? "merchant" : "customer",
+        status: "active",
+        merchantInfo: isMerchant
+          ? {
+              businessName,
+              taxId,
+              address,
+              businessPhone,
+              logoUrl: finalLogoUrl || "",
+            }
+          : undefined,
+      });
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Error saving profile:", error);
+    }
+  };
+
   if (authUser) {
+    // 1. Loading State
+    if (isProfileLoading) {
+      return (
+        <View className="flex-1 items-center justify-center bg-flikk-dark">
+          <ActivityIndicator color="#CCFF00" />
+        </View>
+      );
+    }
+
+    // 2. Profile Completion Form (if incomplete or editing)
+    if (!userProfile?.firstName || isEditing) {
+      return (
+        <KeyboardAvoidingView
+          className="flex-1 bg-flikk-dark"
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={{ paddingTop: insets.top }}
+        >
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{
+              padding: 20,
+              paddingBottom: insets.bottom + 40,
+            }}
+          >
+            <View className="flex-row items-center justify-between">
+              <View className="flex-1">
+                <Text className="font-display text-2xl text-flikk-text">
+                  {userProfile?.firstName
+                    ? t("profile.edit.title")
+                    : t("profile.completion.title")}
+                </Text>
+                <Text className="mt-2 text-base text-flikk-text-muted">
+                  {userProfile?.firstName
+                    ? t("profile.edit.subtitle")
+                    : t("profile.completion.subtitle")}
+                </Text>
+              </View>
+              {isEditing && (
+                <Pressable
+                  onPress={() => setIsEditing(false)}
+                  className="h-10 w-10 items-center justify-center rounded-full bg-white/10"
+                >
+                  <Ionicons name="close" size={24} color="#FFFFFF" />
+                </Pressable>
+              )}
+            </View>
+
+            <View className="mt-8 gap-4">
+              <TextInput
+                className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
+                placeholder={t("profile.completion.firstName")}
+                placeholderTextColor="#666666"
+                value={firstName}
+                onChangeText={setFirstName}
+              />
+              <TextInput
+                className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
+                placeholder={t("profile.completion.lastName")}
+                placeholderTextColor="#666666"
+                value={lastName}
+                onChangeText={setLastName}
+              />
+              <TextInput
+                className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
+                placeholder={t("profile.completion.email")}
+                placeholderTextColor="#666666"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+
+              <View className="mt-4 flex-row items-center justify-between rounded-2xl border border-white/10 bg-flikk-card p-4">
+                <Text className="font-display text-base text-flikk-text">
+                  {t("profile.completion.isMerchant")}
+                </Text>
+                <Switch
+                  value={isMerchant}
+                  onValueChange={setIsMerchant}
+                  trackColor={{ false: "#1E1E1E", true: "#CCFF00" }}
+                  thumbColor={isMerchant ? "#121212" : "#B3B3B3"}
+                />
+              </View>
+
+              {isMerchant && (
+                <View className="gap-4 border-l-2 border-flikk-lime pl-4">
+                  <Text className="mt-2 font-display text-lg text-flikk-lime">
+                    {t("profile.completion.merchantInfo")}
+                  </Text>
+
+                  <Pressable
+                    onPress={() => setShowMediaPicker(true)}
+                    className="h-32 w-32 items-center justify-center rounded-2xl border border-dashed border-white/20 bg-white/5"
+                  >
+                    {logoUri ? (
+                      <Image
+                        source={{ uri: logoUri }}
+                        className="h-full w-full rounded-2xl"
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View className="items-center">
+                        <Ionicons
+                          name="camera-outline"
+                          size={32}
+                          color="#666666"
+                        />
+                        <Text className="mt-2 text-xs text-flikk-text-muted">
+                          {t("profile.completion.uploadLogo")}
+                        </Text>
+                      </View>
+                    )}
+                  </Pressable>
+
+                  <TextInput
+                    className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
+                    placeholder={t("profile.completion.businessName")}
+                    placeholderTextColor="#666666"
+                    value={businessName}
+                    onChangeText={setBusinessName}
+                  />
+                  <TextInput
+                    className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
+                    placeholder={t("profile.completion.taxId")}
+                    placeholderTextColor="#666666"
+                    value={taxId}
+                    onChangeText={setTaxId}
+                  />
+                  <TextInput
+                    className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
+                    placeholder={t("profile.completion.address")}
+                    placeholderTextColor="#666666"
+                    value={address}
+                    onChangeText={setAddress}
+                  />
+                  <TextInput
+                    className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
+                    placeholder={t("profile.completion.businessPhone")}
+                    placeholderTextColor="#666666"
+                    value={businessPhone}
+                    onChangeText={setBusinessPhone}
+                    keyboardType="phone-pad"
+                  />
+                </View>
+              )}
+
+              <Pressable
+                className={`mt-6 h-14 items-center justify-center rounded-full bg-flikk-lime ${
+                  !firstName || !lastName ? "opacity-50" : ""
+                }`}
+                onPress={handleSaveProfile}
+                disabled={!firstName || !lastName || isUpdating}
+              >
+                {isUpdating ? (
+                  <ActivityIndicator color="#121212" />
+                ) : (
+                  <Text className="font-display text-base text-flikk-dark">
+                    {t("profile.completion.save")}
+                  </Text>
+                )}
+              </Pressable>
+            </View>
+          </ScrollView>
+
+          <MediaPicker
+            isVisible={showMediaPicker}
+            onClose={() => setShowMediaPicker(false)}
+            onSelect={(uri) => {
+              setLogoUri(uri);
+              setShowMediaPicker(false);
+            }}
+          />
+        </KeyboardAvoidingView>
+      );
+    }
+
+    // 3. Completed Profile View
     return (
       <View
         className="flex-1 bg-flikk-dark"
@@ -118,20 +376,36 @@ export default function ProfilIndex() {
         </View>
 
         <ScrollView
-          contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+          className="flex-1"
+          contentContainerStyle={{
+            paddingBottom: insets.bottom + 24,
+            flexGrow: 1,
+          }}
         >
           <View className="mx-6 flex-row items-center rounded-3xl border border-white/10 bg-flikk-card p-5">
-            <View className="h-16 w-16 items-center justify-center rounded-full bg-flikk-lime">
-              <Text className="font-display text-2xl text-flikk-dark">
-                {authUser.phoneNumber?.slice(-2) ?? "ME"}
-              </Text>
+            <View className="h-16 w-16 overflow-hidden items-center justify-center rounded-full bg-flikk-lime">
+              {userProfile?.merchantInfo?.logoUrl ? (
+                <Image
+                  source={{ uri: userProfile.merchantInfo.logoUrl }}
+                  className="h-full w-full"
+                  resizeMode="cover"
+                />
+              ) : (
+                <Text className="font-display text-2xl text-flikk-dark">
+                  {userProfile?.firstName?.[0] ||
+                    authUser.phoneNumber?.slice(-2) ||
+                    "ME"}
+                </Text>
+              )}
             </View>
             <View className="ml-4 flex-1">
               <Text className="font-display text-lg text-flikk-text">
-                {t("profile.memberType")}
+                {userProfile?.isMerchant
+                  ? userProfile.merchantInfo?.businessName
+                  : `${userProfile?.firstName} ${userProfile?.lastName}`}
               </Text>
               <Text className="mt-1 font-body text-sm text-flikk-text-muted">
-                {authUser.phoneNumber ?? t("profile.memberSubtitle")}
+                {userProfile?.phoneNumber || authUser.phoneNumber}
               </Text>
             </View>
           </View>
@@ -157,10 +431,53 @@ export default function ProfilIndex() {
               title={t("profile.menu.support")}
               subtitle={t("profile.menu.supportSubtitle")}
             />
+
+            {!userProfile?.isMerchant && (
+              <Pressable
+                onPress={() => {
+                  setIsMerchant(true);
+                  setIsEditing(true);
+                }}
+                className="mt-4 flex-row items-center rounded-3xl border border-flikk-lime/30 bg-flikk-lime/5 p-4"
+              >
+                <View className="mr-4 h-10 w-10 items-center justify-center rounded-full bg-flikk-lime">
+                  <Ionicons name="storefront" size={20} color="#121212" />
+                </View>
+                <View className="flex-1">
+                  <Text className="font-display text-base text-flikk-lime">
+                    {t("profile.menu.becomeMerchant")}
+                  </Text>
+                  <Text className="mt-0.5 font-body text-xs text-flikk-text-muted">
+                    {t("profile.menu.becomeMerchantSubtitle")}
+                  </Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#CCFF00" />
+              </Pressable>
+            )}
+
+            <Pressable
+              onPress={() => setIsEditing(true)}
+              className="mt-2 flex-row items-center rounded-3xl bg-white/[0.03] p-4"
+            >
+              <View className="mr-4 h-10 w-10 items-center justify-center rounded-full bg-white/10">
+                <Ionicons name="person-outline" size={20} color="#FFFFFF" />
+              </View>
+              <View className="flex-1">
+                <Text className="font-display text-base text-flikk-text">
+                  {t("profile.menu.editProfile")}
+                </Text>
+                <Text className="mt-0.5 font-body text-xs text-[#666666]">
+                  {t("profile.menu.editProfileSubtitle")}
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={20} color="#666666" />
+            </Pressable>
           </View>
 
+          <View className="flex-1" />
+
           <Pressable
-            className="mx-6 mb-10 mt-auto h-14 items-center justify-center rounded-full border border-white/20"
+            className="mx-6 mb-4 mt-8 h-14 items-center justify-center rounded-full border border-white/20"
             onPress={handleSignOut}
           >
             <Text className="font-display text-sm text-flikk-text">
@@ -172,6 +489,7 @@ export default function ProfilIndex() {
     );
   }
 
+  // 4. Default Login View (Unchanged from here down)
   return (
     <KeyboardAvoidingView
       className="flex-1 bg-flikk-dark"

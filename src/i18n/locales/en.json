@@ -34,7 +34,11 @@
       "addresses": "Addresses",
       "addressesSubtitle": "Manage delivery locations",
       "support": "Help & Support",
-      "supportSubtitle": "Questions? Contact us"
+      "supportSubtitle": "Questions? Contact us",
+      "becomeMerchant": "Become a Merchant",
+      "becomeMerchantSubtitle": "Open your store on Flikk",
+      "editProfile": "Edit Profile",
+      "editProfileSubtitle": "Update your personal info"
     },
     "logout": "Sign Out",
     "login": {
@@ -58,6 +62,34 @@
       "flash": "Priority access to flash sales",
       "delivery": "Tracked express delivery",
       "security": "100% secure payment"
+    },
+    "edit": {
+      "title": "Edit Profile",
+      "subtitle": "Keep your information up to date."
+    },
+    "completion": {
+      "title": "Complete Profile",
+      "subtitle": "Tell us more about yourself for a better experience.",
+      "firstName": "First Name",
+      "lastName": "Last Name",
+      "email": "Email",
+      "isMerchant": "I am a merchant",
+      "merchantInfo": "Business Information",
+      "businessName": "Business Name",
+      "taxId": "Tax ID (NIF)",
+      "address": "Business Address",
+      "businessPhone": "Business Phone",
+      "logo": "Store Logo",
+      "uploadLogo": "Upload Logo",
+      "save": "Save Profile"
     }
+  },
+  "mediaPicker": {
+    "title": "Select a photo",
+    "permissionText": "We need your permission to access your photos.",
+    "allowAccess": "Allow access",
+    "preview": "Preview",
+    "select": "Select",
+    "cancel": "Cancel"
   }
 }

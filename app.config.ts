@@ -65,6 +65,20 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     [
+      "expo-media-library",
+      {
+        photosPermission: "Allow Flikk to access your photos.",
+        isAccessMediaLocationEnabled: true,
+        granularPermissions: ["photo"],
+      },
+    ],
+    [
+      "expo-image-picker",
+      {
+        photosPermission: "Allow Flikk to access your photos.",
+      },
+    ],
+    [
       "expo-build-properties",
       {
         ios: {

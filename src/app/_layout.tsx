@@ -12,8 +12,11 @@ import { FirebaseService } from "@/services/firebase/firebase-service";
 import { CustomSplash } from "@/components/features/custom-splash";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 registerGlobals();
+
+const queryClient = new QueryClient();
 
 export default function RootLayout() {
   const [showSplash, setShowSplash] = useState(true);
@@ -41,12 +44,16 @@ export default function RootLayout() {
   }
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <View className="flex-1">
-          <Stack screenOptions={{ headerShown: false }} />
-          {showSplash && <CustomSplash onFinish={() => setShowSplash(false)} />}
-        </View>
-      </SafeAreaProvider>
+      <QueryClientProvider client={queryClient}>
+        <SafeAreaProvider>
+          <View className="flex-1">
+            <Stack screenOptions={{ headerShown: false }} />
+            {showSplash && (
+              <CustomSplash onFinish={() => setShowSplash(false)} />
+            )}
+          </View>
+        </SafeAreaProvider>
+      </QueryClientProvider>
     </GestureHandlerRootView>
   );
 }
