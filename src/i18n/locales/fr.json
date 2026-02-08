@@ -14,5 +14,12 @@
     "continue": "Continuer",
     "next": "Suivant",
     "start": "Commencer l'experience"
+  },
+  "tabs": {
+    "live": "Accueil",
+    "discover": "Decouvrir",
+    "action": "Action",
+    "purchases": "Mes achats",
+    "profile": "Profil"
   }
 }

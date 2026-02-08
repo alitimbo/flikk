@@ -14,5 +14,12 @@
     "continue": "Continue",
     "next": "Next",
     "start": "Start the experience"
+  },
+  "tabs": {
+    "live": "Live",
+    "discover": "Discover",
+    "action": "Action",
+    "purchases": "Purchases",
+    "profile": "Profile"
   }
 }

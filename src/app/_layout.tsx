@@ -1,5 +1,6 @@
 import "react-native-gesture-handler";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useEffect, useState } from "react";
 import { Stack } from "expo-router";
 import { View } from "react-native";
@@ -40,10 +41,12 @@ export default function RootLayout() {
   }
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <View className="flex-1">
-        <Stack screenOptions={{ headerShown: false }} />
-        {showSplash && <CustomSplash onFinish={() => setShowSplash(false)} />}
-      </View>
+      <SafeAreaProvider>
+        <View className="flex-1">
+          <Stack screenOptions={{ headerShown: false }} />
+          {showSplash && <CustomSplash onFinish={() => setShowSplash(false)} />}
+        </View>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

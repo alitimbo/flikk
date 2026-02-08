@@ -30,8 +30,9 @@ export default function LanguageScreen() {
   return (
     <OnboardingShell backgroundClassName="bg-[#2B2B2B]">
       <OnboardingSwipe
-        onSwipeLeft={() => router.push("/onboarding/value")}
+        onSwipeLeft={onContinue}
         onSwipeRight={() => {}}
+        allowSwipeRight={false}
       >
         <View className="flex-1 overflow-hidden rounded-3xl">
         <ImageBackground

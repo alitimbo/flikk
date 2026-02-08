@@ -12,12 +12,16 @@ type OnboardingSwipeProps = {
   children: ReactNode;
   onSwipeLeft: () => void;
   onSwipeRight: () => void;
+  allowSwipeLeft?: boolean;
+  allowSwipeRight?: boolean;
 };
 
 export function OnboardingSwipe({
   children,
   onSwipeLeft,
   onSwipeRight,
+  allowSwipeLeft = true,
+  allowSwipeRight = true,
 }: OnboardingSwipeProps) {
   const { width } = useWindowDimensions();
   const translateX = useSharedValue(0);
@@ -25,17 +29,24 @@ export function OnboardingSwipe({
 
   const pan = Gesture.Pan()
     .onUpdate((event) => {
-      translateX.value = event.translationX;
+      let nextX = event.translationX;
+      if (!allowSwipeRight) {
+        nextX = Math.min(0, nextX);
+      }
+      if (!allowSwipeLeft) {
+        nextX = Math.max(0, nextX);
+      }
+      translateX.value = nextX;
     })
     .onEnd((event) => {
       const { translationX } = event;
-      if (translationX <= -threshold) {
+      if (allowSwipeLeft && translationX <= -threshold) {
         translateX.value = withTiming(-width, { duration: 180 }, () => {
           runOnJS(onSwipeLeft)();
         });
         return;
       }
-      if (translationX >= threshold) {
+      if (allowSwipeRight && translationX >= threshold) {
         translateX.value = withTiming(width, { duration: 180 }, () => {
           runOnJS(onSwipeRight)();
         });
