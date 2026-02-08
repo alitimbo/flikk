@@ -7,18 +7,19 @@ export async function initAppCheck() {
   if (initialized) return;
 
   const shouldUseDebug = process.env.EXPO_PUBLIC_FORCE_DEBUG === "true";
-  const debugToken = process.env.EXPO_PUBLIC_APPCHECK_DEBUG_TOKEN;
 
   await initializeAppCheck(getApp(), {
     provider: {
       providerOptions: {
         android: {
           provider: shouldUseDebug ? "debug" : "playIntegrity",
-          ...(shouldUseDebug && debugToken ? { debugToken } : {}),
+          ...(shouldUseDebug
+            ? { debugToken: "AA9E1281-93F5-4203-86E4-71305627FBBA" }
+            : {}),
         },
         apple: {
           provider: shouldUseDebug ? "debug" : "deviceCheck",
-          ...(shouldUseDebug && debugToken ? { debugToken } : {}),
+          ...(shouldUseDebug ? { debugToken: "" } : {}),
         },
       },
     },

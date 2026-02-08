@@ -21,5 +21,43 @@
     "action": "Action",
     "purchases": "Purchases",
     "profile": "Profile"
+  },
+  "profile": {
+    "title": "My Profile",
+    "memberType": "Flikk Member",
+    "memberSubtitle": "Verified Number",
+    "menu": {
+      "orders": "My Orders",
+      "ordersSubtitle": "Track current purchases",
+      "favorites": "Favorites",
+      "favoritesSubtitle": "Products I love",
+      "addresses": "Addresses",
+      "addressesSubtitle": "Manage delivery locations",
+      "support": "Help & Support",
+      "supportSubtitle": "Questions? Contact us"
+    },
+    "logout": "Sign Out",
+    "login": {
+      "brand": "Flikk",
+      "tagline": "The premium shopping",
+      "premium": "experience",
+      "title": "Login",
+      "subtitle": "Enter your number to access exclusive offers.",
+      "phoneLabel": "Phone Number",
+      "button": "Get my code",
+      "buttonWait": "Wait {{seconds}}s",
+      "verifyTitle": "Verification",
+      "verifySubtitle": "Code sent to {{phone}}",
+      "codeLabel": "SMS Code",
+      "confirmButton": "Confirm",
+      "changeNumber": "Change number",
+      "errorSend": "Cannot send code. Check your number.",
+      "errorCode": "Invalid code. Try again."
+    },
+    "benefits": {
+      "flash": "Priority access to flash sales",
+      "delivery": "Tracked express delivery",
+      "security": "100% secure payment"
+    }
   }
 }
