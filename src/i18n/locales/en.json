@@ -112,5 +112,10 @@
       "price": "0",
       "hashtags": "#fashion #new #deal"
     }
+  },
+  "feed": {
+    "share": "Share",
+    "hot": "Hot: {{count}} orders",
+    "buyNow": "Buy Now"
   }
 }

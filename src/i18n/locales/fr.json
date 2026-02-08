@@ -112,5 +112,10 @@
       "price": "0",
       "hashtags": "#mode #nouveauté #promo"
     }
+  },
+  "feed": {
+    "share": "Partager",
+    "hot": "Succès : {{count}} commandes",
+    "buyNow": "Acheter maintenant"
   }
 }
