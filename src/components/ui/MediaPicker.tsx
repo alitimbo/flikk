@@ -15,7 +15,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { Ionicons } from "@expo/vector-icons";
 
-// Interface (À déplacer dans src/types/index.ts plus tard selon ton agents.md)
 interface MediaPickerProps {
   isVisible: boolean;
   onClose: () => void;
@@ -27,11 +26,13 @@ const { width, height } = Dimensions.get("window");
 const COLUMN_COUNT = 3;
 const ITEM_SIZE = width / COLUMN_COUNT;
 
+const DEFAULT_MEDIA_TYPES: MediaLibrary.MediaTypeValue[] = ["photo", "video"];
+
 export function MediaPicker({
   isVisible,
   onClose,
   onSelect,
-  mediaTypes = ["photo", "video"],
+  mediaTypes = DEFAULT_MEDIA_TYPES,
 }: MediaPickerProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -148,14 +149,20 @@ export function MediaPicker({
       setSelectedAsset(null);
       setHasNextPage(true);
     }
-  }, [isVisible, permissionResponse?.status]);
+  }, [
+    isVisible,
+    permissionResponse?.status,
+    loadAlbums,
+    loadAssets,
+    requestPermission,
+  ]);
 
   // Trigger reload quand l'album change
   useEffect(() => {
     if (isVisible && permissionResponse?.granted) {
       loadAssets(true);
     }
-  }, [selectedAlbum]);
+  }, [selectedAlbum, isVisible, permissionResponse?.granted, loadAssets]);
 
   const renderItem = ({ item }: { item: MediaLibrary.Asset }) => (
     <Pressable

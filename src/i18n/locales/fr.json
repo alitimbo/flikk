@@ -96,5 +96,21 @@
     "gallery": "Galerie",
     "recents": "Récents",
     "errorInvalidFormat": "Format invalide. Seules les photos sont autorisées."
+  },
+  "action": {
+    "title": "Créer une Publication",
+    "inputProductName": "Nom du Produit",
+    "inputTitle": "Titre de la publication",
+    "inputPrice": "Prix (CFA)",
+    "inputHashtags": "Hashtags (#tag1 #tag2)",
+    "pickPhoto": "Photo de l'article",
+    "pickVideo": "Vidéo commerciale",
+    "publish": "Publier maintenant",
+    "placeholders": {
+      "productName": "ex: iPhone 15 Pro",
+      "title": "Que vendez-vous ?",
+      "price": "0",
+      "hashtags": "#mode #nouveauté #promo"
+    }
   }
 }

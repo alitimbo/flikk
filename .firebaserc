@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "YOUR_FIREBASE_PROJECT_ID"
-  }
+    "default": "flikk-3c3a0",
+    "staging": "flikk-3c3a0"
+  },
+  "targets": {},
+  "etags": {}
 }

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { UserService } from "@/services/firebase/user-service";
 import { UserProfile } from "@/types";
@@ -28,11 +29,20 @@ export function useUserProfile(uid: string | undefined) {
     },
   });
 
-  return {
-    ...query,
-    updateProfile: mutation.mutateAsync,
-    isUpdating: mutation.isPending,
-    uploadLogo: uploadLogoMutation.mutateAsync,
-    isUploading: uploadLogoMutation.isPending,
-  };
+  return useMemo(
+    () => ({
+      ...query,
+      updateProfile: mutation.mutateAsync,
+      isUpdating: mutation.isPending,
+      uploadLogo: uploadLogoMutation.mutateAsync,
+      isUploading: uploadLogoMutation.isPending,
+    }),
+    [
+      query,
+      mutation.mutateAsync,
+      mutation.isPending,
+      uploadLogoMutation.mutateAsync,
+      uploadLogoMutation.isPending,
+    ],
+  );
 }

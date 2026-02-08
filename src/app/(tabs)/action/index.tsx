@@ -1,19 +1,298 @@
-import { View, Text } from "react-native";
+import { useState, useCallback } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  ScrollView,
+  Pressable,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  TouchableWithoutFeedback,
+  Keyboard,
+} from "react-native";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons, Feather } from "@expo/vector-icons";
+import { MediaPicker } from "@/components/ui/MediaPicker";
+import { StorageService } from "@/services/storage/storage-service";
+import { PublicationService } from "@/services/firebase/publication-service";
+import auth from "@react-native-firebase/auth";
 
 export default function ActionIndex() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
+  // --- ÉTATS DU FORMULAIRE ---
+  const [productName, setProductName] = useState("");
+  const [title, setTitle] = useState("");
+  const [price, setPrice] = useState("");
+  const [hashtags, setHashtags] = useState("");
+  const [itemPhoto, setItemPhoto] = useState<string | null>(null);
+  const [commercialVideo, setCommercialVideo] = useState<string | null>(null);
+
+  // --- ÉTATS DU PICKER ---
+  const [pickerMode, setPickerMode] = useState<"photo" | "video" | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
+
+  const handlePublish = useCallback(async () => {
+    const user = auth().currentUser;
+    if (!user) return;
+
+    if (!productName || !title || !price || !itemPhoto || !commercialVideo)
+      return;
+
+    setIsPublishing(true);
+
+    try {
+      // 1. Upload Photo
+      const photoRes = await StorageService.uploadOne({
+        uri: itemPhoto,
+        kind: "image",
+        pathPrefix: `publications/${user.uid}/photos`,
+      });
+
+      // 2. Upload Video (for HLS processing)
+      const videoRes = await StorageService.uploadForProcessing({
+        uri: commercialVideo,
+        kind: "video",
+        pathPrefix: `uploads/raw/videos/${user.uid}`,
+      });
+
+      // 3. Create Publication doc
+      const pubId = await PublicationService.createPublication({
+        userId: user.uid,
+        productName,
+        title,
+        price: parseInt(price),
+        hashtags: hashtags
+          .split(" ")
+          .filter((h) => h.startsWith("#"))
+          .map((h) => h.trim()),
+        imageUrl: photoRes.downloadUrl,
+        videoUrl: videoRes.downloadUrl,
+        status: "pending",
+      });
+
+      console.log("Publication created with ID:", pubId);
+
+      // 4. Update Video with Publication ID to trigger HLS link
+      await StorageService.updateMetadata(videoRes.path, {
+        "flikk:publicationId": pubId,
+      });
+
+      // Success!
+      setProductName("");
+      setTitle("");
+      setPrice("");
+      setHashtags("");
+      setItemPhoto(null);
+      setCommercialVideo(null);
+    } catch (error) {
+      console.error("Error publishing:", error);
+    } finally {
+      setIsPublishing(false);
+    }
+  }, [productName, title, price, hashtags, itemPhoto, commercialVideo]);
+
   return (
-    <View
-      className="flex-1 items-center justify-center bg-flikk-dark"
-      style={{ paddingTop: insets.top }}
+    <KeyboardAvoidingView
+      className="flex-1 bg-flikk-dark"
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
     >
-      <Text className="font-display text-2xl text-flikk-text">
-        {t("tabs.action")}
-      </Text>
-    </View>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View className="flex-1" style={{ paddingTop: insets.top }}>
+          {/* HEADER */}
+          <View className="px-6 py-4 flex-row justify-between items-center border-b border-white/10">
+            <Text className="font-display text-2xl text-flikk-text">
+              {t("action.title")}
+            </Text>
+            <Pressable className="h-10 w-10 items-center justify-center rounded-full bg-white/10">
+              <Ionicons name="ellipsis-horizontal" size={20} color="white" />
+            </Pressable>
+          </View>
+
+          <ScrollView
+            className="flex-1"
+            contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* MEDIA SECTION */}
+            <View className="flex-row gap-4 mb-8">
+              {/* PHOTO ARTICLE */}
+              <Pressable
+                onPress={() => setPickerMode("photo")}
+                className="flex-1 aspect-square rounded-3xl border border-dashed border-white/20 bg-white/5 overflow-hidden items-center justify-center"
+              >
+                {itemPhoto ? (
+                  <Image
+                    source={{ uri: itemPhoto }}
+                    className="w-full h-full"
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View className="items-center">
+                    <Ionicons name="image-outline" size={32} color="#666666" />
+                    <Text className="text-[10px] uppercase font-bold text-flikk-text-muted mt-2 tracking-widest text-center px-2">
+                      {t("action.pickPhoto")}
+                    </Text>
+                  </View>
+                )}
+                {itemPhoto && (
+                  <View className="absolute bottom-2 right-2 bg-flikk-lime rounded-full p-1">
+                    <Ionicons name="checkmark" size={12} color="black" />
+                  </View>
+                )}
+              </Pressable>
+
+              {/* VIDÉO COMMERCIALE */}
+              <Pressable
+                onPress={() => setPickerMode("video")}
+                className="flex-1 aspect-square rounded-3xl border border-dashed border-white/20 bg-white/5 overflow-hidden items-center justify-center"
+              >
+                <View className="items-center">
+                  <Ionicons
+                    name={commercialVideo ? "videocam" : "videocam-outline"}
+                    size={32}
+                    color={commercialVideo ? "#CCFF00" : "#666666"}
+                  />
+                  <Text
+                    className={`text-[10px] uppercase font-bold mt-2 tracking-widest text-center px-2 ${commercialVideo ? "text-flikk-lime" : "text-flikk-text-muted"}`}
+                  >
+                    {commercialVideo ? "VIDÉO OK" : t("action.pickVideo")}
+                  </Text>
+                </View>
+                {commercialVideo && (
+                  <View className="absolute bottom-2 right-2 bg-flikk-lime rounded-full p-1">
+                    <Ionicons name="play" size={12} color="black" />
+                  </View>
+                )}
+              </Pressable>
+            </View>
+
+            {/* INPUTS SECTION */}
+            <View className="gap-6">
+              {/* NOM DU PRODUIT */}
+              <View>
+                <Text className="text-sm font-bold text-flikk-text-muted mb-3 uppercase tracking-widest pl-1">
+                  {t("action.inputProductName")}
+                </Text>
+                <TextInput
+                  className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
+                  placeholder={t("action.placeholders.productName")}
+                  placeholderTextColor="#666666"
+                  value={productName}
+                  onChangeText={setProductName}
+                  selectionColor="#CCFF00"
+                />
+              </View>
+
+              {/* TITRE */}
+              <View>
+                <Text className="text-sm font-bold text-flikk-text-muted mb-3 uppercase tracking-widest pl-1">
+                  {t("action.inputTitle")}
+                </Text>
+                <TextInput
+                  className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
+                  placeholder={t("action.placeholders.title")}
+                  placeholderTextColor="#666666"
+                  value={title}
+                  onChangeText={setTitle}
+                  selectionColor="#CCFF00"
+                />
+              </View>
+
+              {/* PRIX */}
+              <View>
+                <Text className="text-sm font-bold text-flikk-text-muted mb-3 uppercase tracking-widest pl-1">
+                  {t("action.inputPrice")}
+                </Text>
+                <View className="flex-row items-center h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4">
+                  <TextInput
+                    className="flex-1 font-body text-base text-flikk-text"
+                    placeholder={t("action.placeholders.price")}
+                    placeholderTextColor="#666666"
+                    value={price}
+                    onChangeText={setPrice}
+                    keyboardType="numeric"
+                    selectionColor="#CCFF00"
+                  />
+                  <Text className="text-flikk-lime font-bold ml-2">CFA</Text>
+                </View>
+              </View>
+
+              {/* HASHTAGS */}
+              <View>
+                <Text className="text-sm font-bold text-flikk-text-muted mb-3 uppercase tracking-widest pl-1">
+                  {t("action.inputHashtags")}
+                </Text>
+                <TextInput
+                  className="h-24 w-full rounded-2xl border border-white/10 bg-flikk-card p-4 font-body text-base text-flikk-text"
+                  placeholder={t("action.placeholders.hashtags")}
+                  placeholderTextColor="#666666"
+                  value={hashtags}
+                  onChangeText={setHashtags}
+                  multiline
+                  textAlignVertical="top"
+                  selectionColor="#CCFF00"
+                />
+              </View>
+            </View>
+
+            {/* BOUTON PUBLIER */}
+            <Pressable
+              className={`mt-10 h-16 items-center justify-center rounded-full bg-flikk-lime shadow-lg shadow-flikk-lime/20 ${
+                !productName ||
+                !title ||
+                !price ||
+                !itemPhoto ||
+                !commercialVideo
+                  ? "opacity-30"
+                  : "active:scale-[0.98]"
+              }`}
+              onPress={handlePublish}
+              disabled={
+                !productName ||
+                !title ||
+                !price ||
+                !itemPhoto ||
+                !commercialVideo ||
+                isPublishing
+              }
+            >
+              {isPublishing ? (
+                <ActivityIndicator color="#121212" />
+              ) : (
+                <View className="flex-row items-center">
+                  <Text className="font-display text-lg text-flikk-dark mr-2">
+                    {t("action.publish")}
+                  </Text>
+                  <Feather name="send" size={20} color="#121212" />
+                </View>
+              )}
+            </Pressable>
+
+            <View style={{ height: 100 }} />
+          </ScrollView>
+        </View>
+      </TouchableWithoutFeedback>
+
+      {/* MEDIA PICKER MODAL */}
+      <MediaPicker
+        isVisible={!!pickerMode}
+        onClose={() => setPickerMode(null)}
+        mediaTypes={pickerMode === "photo" ? ["photo"] : ["video"]}
+        onSelect={(uri, type) => {
+          if (pickerMode === "photo") {
+            setItemPhoto(uri);
+          } else {
+            setCommercialVideo(uri);
+          }
+          setPickerMode(null);
+        }}
+      />
+    </KeyboardAvoidingView>
   );
 }

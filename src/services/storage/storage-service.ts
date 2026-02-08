@@ -21,12 +21,15 @@ export class StorageService {
   static async uploadMany(items: UploadItem[]) {
     const results = await Promise.allSettled(
       items.map((item, index) =>
-        this.uploadOne(item).then((result) => ({ ...result, index }))
-      )
+        this.uploadOne(item).then((result) => ({ ...result, index })),
+      ),
     );
 
     const fulfilled = results
-      .filter((r): r is PromiseFulfilledResult<UploadResult> => r.status === "fulfilled")
+      .filter(
+        (r): r is PromiseFulfilledResult<UploadResult> =>
+          r.status === "fulfilled",
+      )
       .map((r) => r.value);
 
     const rejected = results
@@ -39,12 +42,15 @@ export class StorageService {
   static async uploadManyForProcessing(items: UploadItem[]) {
     const results = await Promise.allSettled(
       items.map((item, index) =>
-        this.uploadForProcessing(item).then((result) => ({ ...result, index }))
-      )
+        this.uploadForProcessing(item).then((result) => ({ ...result, index })),
+      ),
     );
 
     const fulfilled = results
-      .filter((r): r is PromiseFulfilledResult<UploadResult> => r.status === "fulfilled")
+      .filter(
+        (r): r is PromiseFulfilledResult<UploadResult> =>
+          r.status === "fulfilled",
+      )
       .map((r) => r.value);
 
     const rejected = results
@@ -55,17 +61,30 @@ export class StorageService {
   }
 
   static async uploadOne(item: UploadItem) {
-    const extension = getRequiredExtension(item.kind);
-    const contentType = item.contentType ?? getRequiredContentType(item.kind);
-    const fileName = normalizeFileName(item.fileName ?? generateFileName(extension), extension);
+    const originalExt = extractExtension(item.uri);
+    const isAllowed = isAllowedExtension(originalExt, item.kind);
+
+    // If original extension is allowed, use it. Otherwise, fallback to default.
+    const extension =
+      isAllowed && originalExt ? originalExt : getRequiredExtension(item.kind);
+    const contentType =
+      item.contentType ??
+      guessContentType(extension) ??
+      getRequiredContentType(item.kind);
+
+    const fileName = normalizeFileName(
+      item.fileName ?? generateFileName(extension),
+      extension,
+    );
     const path = buildPath(item.pathPrefix, fileName);
 
-    ensureUriHasExtension(item.uri, extension);
+    // Only throw if the URI doesn't match any allowed extension for this kind
+    ensureUriHasAllowedExtension(item.uri, item.kind);
 
     const ref = FirebaseService.storage.ref(path);
     await ref.putFile(item.uri, {
       contentType,
-      customMetadata: item.metadata,
+      customMetadata: sanitizeMetadata(item.metadata),
     });
     const downloadUrl = await ref.getDownloadURL();
 
@@ -74,23 +93,45 @@ export class StorageService {
 
   static async uploadForProcessing(item: UploadItem) {
     const extension = extractExtension(item.uri);
-    const contentType = item.contentType ?? guessContentType(extension) ?? "application/octet-stream";
-    const fileName = normalizeFileName(item.fileName ?? generateRawFileName(extension), extension);
-    const path = buildPath(item.pathPrefix ?? "uploads/raw", fileName);
+    const contentType =
+      item.contentType ??
+      guessContentType(extension) ??
+      "application/octet-stream";
+    const fileName = normalizeFileName(
+      item.fileName ?? generateRawFileName(extension),
+      extension,
+    );
+
+    // Crucial: Use the path the Cloud Function is listening for
+    const folder =
+      item.kind === "video" ? "uploads/raw/videos" : "uploads/raw/images";
+    const path = buildPath(item.pathPrefix ?? folder, fileName);
 
     const ref = FirebaseService.storage.ref(path);
     await ref.putFile(item.uri, {
       contentType,
-      customMetadata: {
+      customMetadata: sanitizeMetadata({
         ...item.metadata,
         "flikk:kind": item.kind,
-        "flikk:desiredFormat": getRequiredExtension(item.kind),
+        "flikk:desiredFormat":
+          item.kind === "video" ? "hls" : getRequiredExtension(item.kind),
         "flikk:originalExtension": extension ?? "unknown",
-      },
+      }),
     });
     const downloadUrl = await ref.getDownloadURL();
 
     return { path, downloadUrl };
+  }
+
+  static getRef(path: string) {
+    return FirebaseService.storage.ref(path);
+  }
+
+  static async updateMetadata(path: string, metadata: Record<string, string>) {
+    const ref = this.getRef(path);
+    return await ref.updateMetadata({
+      customMetadata: sanitizeMetadata(metadata),
+    });
   }
 }
 
@@ -115,10 +156,11 @@ function generateRawFileName(extension: string | null) {
   return `${stamp}-${rand}.${extension}`;
 }
 
-function normalizeFileName(fileName: string, extension: string) {
+function normalizeFileName(fileName: string, extension: string | null) {
   const clean = fileName.trim();
-  if (!clean) return generateFileName(extension);
-  if (clean.toLowerCase().endsWith(`.${extension}`)) return clean;
+  if (!clean) return generateRawFileName(extension);
+  if (extension && clean.toLowerCase().endsWith(`.${extension}`)) return clean;
+  if (!extension) return clean;
   return `${clean}.${extension}`;
 }
 
@@ -128,11 +170,19 @@ function buildPath(pathPrefix: string | undefined, fileName: string) {
   return `${prefix}/${fileName}`;
 }
 
-function ensureUriHasExtension(uri: string, extension: string) {
-  const lower = uri.toLowerCase();
-  if (!lower.includes(`.${extension}`)) {
+function isAllowedExtension(ext: string | null, kind: UploadKind) {
+  if (!ext) return false;
+  const imageExts = ["png", "jpg", "jpeg", "webp", "heic"];
+  const videoExts = ["mp4", "mov", "mkv", "webm"];
+  return kind === "image" ? imageExts.includes(ext) : videoExts.includes(ext);
+}
+
+function ensureUriHasAllowedExtension(uri: string, kind: UploadKind) {
+  const ext = extractExtension(uri);
+  if (!isAllowedExtension(ext, kind)) {
+    const allowed = kind === "image" ? "png, jpg, webp" : "mp4, mov";
     throw new Error(
-      `Invalid file extension. Expected .${extension} for ${uri}`
+      `Invalid file extension .${ext} for ${kind}. Expected one of: ${allowed}`,
     );
   }
 }
@@ -154,4 +204,17 @@ function guessContentType(extension: string | null) {
   if (extension === "mkv") return "video/x-matroska";
   if (extension === "webm") return "video/webm";
   return null;
+}
+
+function sanitizeMetadata(
+  metadata?: Record<string, any>,
+): Record<string, string> | null {
+  if (!metadata) return null;
+  const sanitized: Record<string, string> = {};
+  Object.entries(metadata).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      sanitized[key] = String(value);
+    }
+  });
+  return Object.keys(sanitized).length > 0 ? sanitized : null;
 }

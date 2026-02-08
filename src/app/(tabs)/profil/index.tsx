@@ -10,6 +10,8 @@ import {
   Text,
   TextInput,
   View,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { FirebaseAuthTypes } from "@react-native-firebase/auth";
@@ -73,9 +75,9 @@ export default function ProfilIndex() {
     return unsubscribe;
   }, []);
 
-  // Pre-fill form if data exists (for editing later, though currently we only show on incomplete)
+  // Sync form states with profile data only when NOT editing to prevent loops and data loss
   useEffect(() => {
-    if (userProfile) {
+    if (userProfile && !isEditing) {
       setFirstName(userProfile.firstName || "");
       setLastName(userProfile.lastName || "");
       setEmail(userProfile.email || "");
@@ -88,7 +90,7 @@ export default function ProfilIndex() {
         setLogoUri(userProfile.merchantInfo.logoUrl || null);
       }
     }
-  }, [userProfile]);
+  }, [userProfile, isEditing]);
 
   useEffect(() => {
     if (resendSeconds <= 0) {
@@ -197,159 +199,161 @@ export default function ProfilIndex() {
       return (
         <KeyboardAvoidingView
           className="flex-1 bg-flikk-dark"
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
           style={{ paddingTop: insets.top }}
         >
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{
-              padding: 20,
-              paddingBottom: insets.bottom + 40,
-            }}
-          >
-            <View className="flex-row items-center justify-between">
-              <View className="flex-1">
-                <Text className="font-display text-2xl text-flikk-text">
-                  {userProfile?.firstName
-                    ? t("profile.edit.title")
-                    : t("profile.completion.title")}
-                </Text>
-                <Text className="mt-2 text-base text-flikk-text-muted">
-                  {userProfile?.firstName
-                    ? t("profile.edit.subtitle")
-                    : t("profile.completion.subtitle")}
-                </Text>
-              </View>
-              {isEditing && (
-                <Pressable
-                  onPress={() => setIsEditing(false)}
-                  className="h-10 w-10 items-center justify-center rounded-full bg-white/10"
-                >
-                  <Ionicons name="close" size={24} color="#FFFFFF" />
-                </Pressable>
-              )}
-            </View>
-
-            <View className="mt-8 gap-4">
-              <TextInput
-                className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
-                placeholder={t("profile.completion.firstName")}
-                placeholderTextColor="#666666"
-                value={firstName}
-                onChangeText={setFirstName}
-              />
-              <TextInput
-                className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
-                placeholder={t("profile.completion.lastName")}
-                placeholderTextColor="#666666"
-                value={lastName}
-                onChangeText={setLastName}
-              />
-              <TextInput
-                className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
-                placeholder={t("profile.completion.email")}
-                placeholderTextColor="#666666"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-
-              <View className="mt-4 flex-row items-center justify-between rounded-2xl border border-white/10 bg-flikk-card p-4">
-                <Text className="font-display text-base text-flikk-text">
-                  {t("profile.completion.isMerchant")}
-                </Text>
-                <Switch
-                  value={isMerchant}
-                  onValueChange={setIsMerchant}
-                  trackColor={{ false: "#1E1E1E", true: "#CCFF00" }}
-                  thumbColor={isMerchant ? "#121212" : "#B3B3B3"}
-                />
-              </View>
-
-              {isMerchant && (
-                <View className="gap-4 border-l-2 border-flikk-lime pl-4">
-                  <Text className="mt-2 font-display text-lg text-flikk-lime">
-                    {t("profile.completion.merchantInfo")}
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{
+                padding: 20,
+                paddingBottom: insets.bottom + 40,
+              }}
+            >
+              <View className="flex-row items-center justify-between">
+                <View className="flex-1">
+                  <Text className="font-display text-2xl text-flikk-text">
+                    {userProfile?.firstName
+                      ? t("profile.edit.title")
+                      : t("profile.completion.title")}
                   </Text>
-
+                  <Text className="mt-2 text-base text-flikk-text-muted">
+                    {userProfile?.firstName
+                      ? t("profile.edit.subtitle")
+                      : t("profile.completion.subtitle")}
+                  </Text>
+                </View>
+                {isEditing && (
                   <Pressable
-                    onPress={() => setShowMediaPicker(true)}
-                    className="h-32 w-32 items-center justify-center rounded-2xl border border-dashed border-white/20 bg-white/5"
+                    onPress={() => setIsEditing(false)}
+                    className="h-10 w-10 items-center justify-center rounded-full bg-white/10"
                   >
-                    {logoUri ? (
-                      <Image
-                        source={{ uri: logoUri }}
-                        className="h-full w-full rounded-2xl"
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <View className="items-center">
-                        <Ionicons
-                          name="camera-outline"
-                          size={32}
-                          color="#666666"
-                        />
-                        <Text className="mt-2 text-xs text-flikk-text-muted">
-                          {t("profile.completion.uploadLogo")}
-                        </Text>
-                      </View>
-                    )}
+                    <Ionicons name="close" size={24} color="#FFFFFF" />
                   </Pressable>
+                )}
+              </View>
 
-                  <TextInput
-                    className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
-                    placeholder={t("profile.completion.businessName")}
-                    placeholderTextColor="#666666"
-                    value={businessName}
-                    onChangeText={setBusinessName}
-                  />
-                  <TextInput
-                    className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
-                    placeholder={t("profile.completion.taxId")}
-                    placeholderTextColor="#666666"
-                    value={taxId}
-                    onChangeText={setTaxId}
-                  />
-                  <TextInput
-                    className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
-                    placeholder={t("profile.completion.address")}
-                    placeholderTextColor="#666666"
-                    value={address}
-                    onChangeText={setAddress}
-                  />
-                  <TextInput
-                    className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
-                    placeholder={t("profile.completion.businessPhone")}
-                    placeholderTextColor="#666666"
-                    value={businessPhone}
-                    onChangeText={setBusinessPhone}
-                    keyboardType="phone-pad"
+              <View className="mt-8 gap-4">
+                <TextInput
+                  className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
+                  placeholder={t("profile.completion.firstName")}
+                  placeholderTextColor="#666666"
+                  value={firstName}
+                  onChangeText={setFirstName}
+                />
+                <TextInput
+                  className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
+                  placeholder={t("profile.completion.lastName")}
+                  placeholderTextColor="#666666"
+                  value={lastName}
+                  onChangeText={setLastName}
+                />
+                <TextInput
+                  className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
+                  placeholder={t("profile.completion.email")}
+                  placeholderTextColor="#666666"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+
+                <View className="mt-4 flex-row items-center justify-between rounded-2xl border border-white/10 bg-flikk-card p-4">
+                  <Text className="font-display text-base text-flikk-text">
+                    {t("profile.completion.isMerchant")}
+                  </Text>
+                  <Switch
+                    value={isMerchant}
+                    onValueChange={setIsMerchant}
+                    trackColor={{ false: "#1E1E1E", true: "#CCFF00" }}
+                    thumbColor={isMerchant ? "#121212" : "#B3B3B3"}
                   />
                 </View>
-              )}
 
-              <Pressable
-                className={`mt-6 h-14 items-center justify-center rounded-full bg-flikk-lime ${
-                  !firstName || !lastName ? "opacity-50" : ""
-                }`}
-                onPress={handleSaveProfile}
-                disabled={!firstName || !lastName || isUpdating}
-              >
-                {isUpdating ? (
-                  <ActivityIndicator color="#121212" />
-                ) : (
-                  <Text className="font-display text-base text-flikk-dark">
-                    {t("profile.completion.save")}
-                  </Text>
+                {isMerchant && (
+                  <View className="gap-4 border-l-2 border-flikk-lime pl-4">
+                    <Text className="mt-2 font-display text-lg text-flikk-lime">
+                      {t("profile.completion.merchantInfo")}
+                    </Text>
+
+                    <Pressable
+                      onPress={() => setShowMediaPicker(true)}
+                      className="h-32 w-32 items-center justify-center rounded-2xl border border-dashed border-white/20 bg-white/5"
+                    >
+                      {logoUri ? (
+                        <Image
+                          source={{ uri: logoUri }}
+                          className="h-full w-full rounded-2xl"
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View className="items-center">
+                          <Ionicons
+                            name="camera-outline"
+                            size={32}
+                            color="#666666"
+                          />
+                          <Text className="mt-2 text-xs text-flikk-text-muted">
+                            {t("profile.completion.uploadLogo")}
+                          </Text>
+                        </View>
+                      )}
+                    </Pressable>
+
+                    <TextInput
+                      className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
+                      placeholder={t("profile.completion.businessName")}
+                      placeholderTextColor="#666666"
+                      value={businessName}
+                      onChangeText={setBusinessName}
+                    />
+                    <TextInput
+                      className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
+                      placeholder={t("profile.completion.taxId")}
+                      placeholderTextColor="#666666"
+                      value={taxId}
+                      onChangeText={setTaxId}
+                    />
+                    <TextInput
+                      className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
+                      placeholder={t("profile.completion.address")}
+                      placeholderTextColor="#666666"
+                      value={address}
+                      onChangeText={setAddress}
+                    />
+                    <TextInput
+                      className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
+                      placeholder={t("profile.completion.businessPhone")}
+                      placeholderTextColor="#666666"
+                      value={businessPhone}
+                      onChangeText={setBusinessPhone}
+                      keyboardType="phone-pad"
+                    />
+                  </View>
                 )}
-              </Pressable>
-            </View>
-            {/* Added spacer to ensure the keyboard doesn't cover the last field */}
-            <View style={{ height: 100 }} />
-          </ScrollView>
+
+                <Pressable
+                  className={`mt-6 h-14 items-center justify-center rounded-full bg-flikk-lime ${
+                    !firstName || !lastName ? "opacity-50" : ""
+                  }`}
+                  onPress={handleSaveProfile}
+                  disabled={!firstName || !lastName || isUpdating}
+                >
+                  {isUpdating ? (
+                    <ActivityIndicator color="#121212" />
+                  ) : (
+                    <Text className="font-display text-base text-flikk-dark">
+                      {t("profile.completion.save")}
+                    </Text>
+                  )}
+                </Pressable>
+              </View>
+              {/* Added spacer to ensure the keyboard doesn't cover the last field */}
+              <View style={{ height: 100 }} />
+            </ScrollView>
+          </TouchableWithoutFeedback>
 
           <MediaPicker
             isVisible={showMediaPicker}

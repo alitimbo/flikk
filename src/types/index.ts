@@ -22,3 +22,26 @@ export interface UserProfile {
   createdAt?: any;
   updatedAt?: any;
 }
+
+export interface Publication {
+  id?: string;
+  userId: string;
+  productName: string;
+  title: string;
+  price: number;
+  hashtags: string[];
+  imageUrl: string;
+  videoUrl: string; // Original video URL
+  hlsUrl?: string; // Transcoded master.m3u8 URL
+  status: "pending" | "processing" | "ready" | "error";
+
+  // Stats
+  orderCount: number;
+  commentCount: number;
+  likeCount: number;
+  reviewCount: number;
+  viewCount: number;
+
+  createdAt?: any;
+  updatedAt?: any;
+}

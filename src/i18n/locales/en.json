@@ -96,5 +96,21 @@
     "gallery": "Gallery",
     "recents": "Recents",
     "errorInvalidFormat": "Invalid format. Only photos are allowed."
+  },
+  "action": {
+    "title": "Create Publication",
+    "inputProductName": "Product Name",
+    "inputTitle": "Publication Title",
+    "inputPrice": "Price (CFA)",
+    "inputHashtags": "Hashtags (#tag1 #tag2)",
+    "pickPhoto": "Article Photo",
+    "pickVideo": "Commercial Video",
+    "publish": "Publish Now",
+    "placeholders": {
+      "productName": "e.g. iPhone 15 Pro",
+      "title": "What are you selling?",
+      "price": "0",
+      "hashtags": "#fashion #new #deal"
+    }
   }
 }
