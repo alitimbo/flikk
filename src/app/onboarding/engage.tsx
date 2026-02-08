@@ -14,7 +14,7 @@ export default function EngageScreen() {
   return (
     <OnboardingShell backgroundClassName="bg-flikk-dark">
       <OnboardingSwipe
-        onSwipeLeft={() => router.replace("/home/live")}
+        onSwipeLeft={() => router.replace("/(tabs)/home")}
         onSwipeRight={() => router.push("/onboarding/value")}
       >
         <View className="flex-1 overflow-hidden rounded-3xl">
@@ -37,7 +37,7 @@ export default function EngageScreen() {
                 {t("onboarding.engageBody")}
               </Text>
               <Pressable
-                onPress={() => router.replace("/home/live")}
+                onPress={() => router.replace("/(tabs)/home")}
                 className="mx-auto w-full rounded-full bg-flikk-lime py-4"
               >
                 <Text className="text-center font-display text-base text-black">

@@ -6,14 +6,14 @@
   "ctaExplore": "Explorer",
   "onboarding": {
     "welcomeTitle": "Bienvenue chez Flikk",
-    "welcomeBody": "Choisissez votre langue pour personnaliser votre experience de shopping.",
+    "welcomeBody": "Choisissez votre langue pour personnaliser votre expérience de shopping.",
     "valueTitle": "Vivez le shopping en direct",
-    "valueBody": "Interagissez avec vos createurs preferes et posez vos questions en temps reel.",
+    "valueBody": "Interagissez avec vos créateurs préférés et faites vos achats en un clic.",
     "engageTitle": "Achetez en un clic",
-    "engageBody": "Ne ratez plus aucune exclusivite. Pret a flikker ?",
+    "engageBody": "Ne ratez plus aucune exclusivité. Prêt à flikker ?",
     "continue": "Continuer",
     "next": "Suivant",
-    "start": "Commencer l'experience"
+    "start": "Commencer l'expérience"
   },
   "tabs": {
     "live": "Accueil",

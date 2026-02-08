@@ -50,11 +50,11 @@ export default function HomeLayout() {
 
   return (
     <Tabs
-      initialRouteName="live"
+      initialRouteName="home"
       screenOptions={{
         headerShown: false,
         tabBarStyle,
-        tabBarActiveTintColor: "#CCFF00",
+        tabBarActiveTintColor: "#A87FF3",
         tabBarInactiveTintColor: "#B3B3B3",
         tabBarLabelStyle: {
           fontFamily: "Syne-Variable",
@@ -63,7 +63,7 @@ export default function HomeLayout() {
       }}
     >
       <Tabs.Screen
-        name="live"
+        name="home"
         options={{
           title: t("tabs.live"),
           tabBarIcon: ({ color, size }) => (
@@ -84,7 +84,7 @@ export default function HomeLayout() {
         name="action"
         options={{
           title: t("tabs.action"),
-          tabBarShowLabel: false,
+          tabBarLabel: () => null,
           tabBarButton: (props) => (
             <ActionTabButton
               onPress={props.onPress}
