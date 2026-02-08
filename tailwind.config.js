@@ -13,6 +13,10 @@ module.exports = {
         "flikk-text": "#FFFFFF",
         "flikk-text-muted": "#B3B3B3",
       },
+      fontFamily: {
+        display: ["Syne-Variable"],
+        body: ["Inter-Variable"],
+      },
     },
   },
   plugins: [],

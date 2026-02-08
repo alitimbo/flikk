@@ -3,5 +3,16 @@
   "heroTitle": "Video commerce in 1 tap",
   "heroSubtitle": "Discover, buy, and pay instantly.",
   "progressLabel": "Progress",
-  "ctaExplore": "Explore"
+  "ctaExplore": "Explore",
+  "onboarding": {
+    "welcomeTitle": "Welcome to Flikk",
+    "welcomeBody": "Choose your language to personalize your shopping experience.",
+    "valueTitle": "Live shopping, in real time",
+    "valueBody": "Interact with your favorite creators and ask questions instantly.",
+    "engageTitle": "Buy in one click",
+    "engageBody": "Never miss an exclusive drop. Ready to flikk?",
+    "continue": "Continue",
+    "next": "Next",
+    "start": "Start the experience"
+  }
 }
