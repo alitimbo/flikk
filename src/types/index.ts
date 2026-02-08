@@ -33,7 +33,7 @@ export interface Publication {
   imageUrl: string;
   videoUrl: string; // Original video URL
   hlsUrl?: string; // Transcoded master.m3u8 URL
-  status: "pending" | "processing" | "ready" | "error";
+  status: "pending" | "processing" | "ready" | "error" | "deleted";
 
   // Stats
   orderCount: number;

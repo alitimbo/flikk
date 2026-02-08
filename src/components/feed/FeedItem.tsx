@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { View, Text, Dimensions, Pressable, StyleSheet } from "react-native";
 import Video, { ResizeMode } from "react-native-video";
-import convertToCacheUri from "react-native-video-cache";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { Publication } from "@/types";
@@ -24,7 +23,7 @@ export function FeedItem({ publication, isActive }: FeedItemProps) {
   // Convert to cache URI for HLS segments persistence
   const videoSource = useMemo(() => {
     const url = publication.hlsUrl || publication.videoUrl;
-    return { uri: convertToCacheUri(url) };
+    return { uri: url };
   }, [publication.hlsUrl, publication.videoUrl]);
 
   // Handle Play/Pause and View Tracking

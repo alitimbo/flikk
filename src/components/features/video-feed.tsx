@@ -16,10 +16,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Publication } from "@/types";
 import { PublicationService } from "@/services/firebase/publication-service";
 import { FeedItem } from "@/components/feed/FeedItem";
-import firestore, {
-  FirebaseFirestoreTypes,
-} from "@react-native-firebase/firestore";
-import convertToCacheUri from "react-native-video-cache";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 const TAB_BAR_HEIGHT = 72;
@@ -78,33 +74,12 @@ export default function VideoFeed() {
     fetchFeed(true);
   }, [fetchFeed]);
 
-  // SMART PRE-FETCHING LOGIC
-  const preLoadNextVideos = useCallback(
-    (currentIndex: number) => {
-      // Pre-load the next 2 videos to the cache
-      for (let i = 1; i <= 2; i++) {
-        const nextIdx = currentIndex + i;
-        if (nextIdx < publications.length) {
-          const nextPub = publications[nextIdx];
-          const url = nextPub.hlsUrl || nextPub.videoUrl;
-          if (url) {
-            // Simply calling convertToCacheUri starts the fetch/cache process in the background proxy
-            convertToCacheUri(url);
-            console.log(`Flikk: Pre-fetching video ${nextIdx} to cache`);
-          }
-        }
-      }
-    },
-    [publications],
-  );
-
   const onViewableItemsChanged = useRef(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
       if (viewableItems.length > 0) {
         const firstVisible = viewableItems[0];
         if (firstVisible.item && firstVisible.index !== null) {
           setActiveId(firstVisible.item.id);
-          preLoadNextVideos(firstVisible.index);
         }
       }
     },

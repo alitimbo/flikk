@@ -43,6 +43,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     "@livekit/react-native-expo-plugin",
     "@config-plugins/react-native-webrtc",
     [
+      "react-native-video",
+      {
+        enableCacheExtension: true,
+        androidExtensions: {
+          useExoplayerHls: true,
+        },
+      },
+    ],
+    [
       "react-native-vision-camera",
       {
         cameraPermissionText: "Flikk needs access to your Camera.",
