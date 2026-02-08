@@ -27,8 +27,8 @@
     "memberType": "Membre Flikk",
     "memberSubtitle": "Numéro confirmé",
     "menu": {
-      "orders": "Mes commandes",
-      "ordersSubtitle": "Suivre mes achats en cours",
+      "publications": "Mes Publications",
+      "publicationsSubtitle": "Gérer vos produits en ligne",
       "favorites": "Favoris",
       "favoritesSubtitle": "Produits que j'aime",
       "addresses": "Adresses",
@@ -85,11 +85,16 @@
     }
   },
   "mediaPicker": {
-    "title": "Choisir une photo",
-    "permissionText": "Nous avons besoin de votre permission pour accéder à vos photos.",
+    "title": "Choisir un média",
+    "permissionText": "Nous avons besoin de votre permission pour accéder à votre bibliothèque.",
     "allowAccess": "Autoriser l'accès",
     "preview": "Aperçu",
     "select": "Sélectionner",
-    "cancel": "Annuler"
+    "cancel": "Annuler",
+    "back": "Retour",
+    "validate": "Valider",
+    "gallery": "Galerie",
+    "recents": "Récents",
+    "errorInvalidFormat": "Format invalide. Seules les photos sont autorisées."
   }
 }

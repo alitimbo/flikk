@@ -10,19 +10,20 @@ import {
   ActivityIndicator,
 } from "react-native";
 import * as MediaLibrary from "expo-media-library";
-import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useVideoPlayer, VideoView } from "expo-video";
+import { Ionicons } from "@expo/vector-icons";
 
-// On suit ton guide : types centralisés normalement, mais ici pour le fix :
+// Interface (À déplacer dans src/types/index.ts plus tard selon ton agents.md)
 interface MediaPickerProps {
   isVisible: boolean;
   onClose: () => void;
-  onSelect: (uri: string) => void;
+  onSelect: (uri: string, type: MediaLibrary.MediaTypeValue) => void;
   mediaTypes?: MediaLibrary.MediaTypeValue[];
 }
 
-const { width } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
 const COLUMN_COUNT = 3;
 const ITEM_SIZE = width / COLUMN_COUNT;
 
@@ -35,7 +36,7 @@ export function MediaPicker({
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
-  // États
+  // --- ÉTATS ---
   const [permissionResponse, requestPermission] = MediaLibrary.usePermissions();
   const [assets, setAssets] = useState<MediaLibrary.Asset[]>([]);
   const [albums, setAlbums] = useState<MediaLibrary.Album[]>([]);
@@ -46,25 +47,58 @@ export function MediaPicker({
     null,
   );
 
-  // Refs pour éviter la boucle infinie
+  // --- PAGINATION & LOCK ---
   const [isLoading, setIsLoading] = useState(false);
   const loadingRef = useRef(false);
   const [hasNextPage, setHasNextPage] = useState(true);
   const [endCursor, setEndCursor] = useState<string | undefined>(undefined);
 
-  // 1. Charger les albums (une seule fois au montage/permission)
+  // 1. Initialiser le player
+  const player = useVideoPlayer(null, (p) => {
+    p.loop = true;
+    p.muted = false;
+  });
+
+  // 2. Correction avec replaceAsync
+  useEffect(() => {
+    let isMounted = true;
+
+    const updateSource = async () => {
+      if (selectedAsset?.mediaType === "video") {
+        try {
+          // replaceAsync ne bloque pas le thread principal (main thread)
+          await player.replaceAsync(selectedAsset.uri);
+          if (isMounted) player.play();
+        } catch (e) {
+          console.error("Flikk Video Error:", e);
+        }
+      } else {
+        player.pause();
+      }
+    };
+
+    updateSource();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedAsset, player]);
+
+  // --- LOGIQUE DE CHARGEMENT ---
   const loadAlbums = useCallback(async () => {
     if (permissionResponse?.status !== "granted") return;
-    const allAlbums = await MediaLibrary.getAlbumsAsync({
-      includeSmartAlbums: true,
-    });
-    setAlbums(allAlbums);
+    try {
+      const allAlbums = await MediaLibrary.getAlbumsAsync({
+        includeSmartAlbums: true,
+      });
+      setAlbums(allAlbums);
+    } catch (err) {
+      console.error("Flikk Error [loadAlbums]:", err);
+    }
   }, [permissionResponse?.status]);
 
-  // 2. Charger les assets (Logique robuste)
   const loadAssets = useCallback(
     async (refresh = false) => {
-      // Si déjà en train de charger ou fini, on stoppe
       if (loadingRef.current || (!hasNextPage && !refresh)) return;
 
       loadingRef.current = true;
@@ -88,16 +122,16 @@ export function MediaPicker({
         setEndCursor(page.endCursor);
         setHasNextPage(page.hasNextPage);
       } catch (err) {
-        console.error("Flikk MediaPicker Error:", err);
+        console.error("Flikk Error [loadAssets]:", err);
       } finally {
         loadingRef.current = false;
         setIsLoading(false);
       }
     },
     [endCursor, hasNextPage, selectedAlbum, mediaTypes],
-  ); // isLoading retiré d'ici !
+  );
 
-  // 3. Effet unique pour l'ouverture
+  // Cycle de vie de la modale
   useEffect(() => {
     if (isVisible) {
       if (permissionResponse?.status !== "granted") {
@@ -107,38 +141,36 @@ export function MediaPicker({
         loadAssets(true);
       }
     } else {
-      // Reset total à la fermeture
+      // Nettoyage strict à la fermeture
       setAssets([]);
       setEndCursor(undefined);
       setSelectedAlbum(null);
+      setSelectedAsset(null);
+      setHasNextPage(true);
     }
-  }, [
-    isVisible,
-    permissionResponse?.status,
-    requestPermission,
-    loadAlbums,
-    loadAssets,
-  ]);
+  }, [isVisible, permissionResponse?.status]);
 
-  // 4. Effet pour le changement d'album
+  // Trigger reload quand l'album change
   useEffect(() => {
     if (isVisible && permissionResponse?.granted) {
       loadAssets(true);
     }
-  }, [selectedAlbum, isVisible, permissionResponse?.granted, loadAssets]);
+  }, [selectedAlbum]);
 
   const renderItem = ({ item }: { item: MediaLibrary.Asset }) => (
     <Pressable
       onPress={() => setSelectedAsset(item)}
       style={{ width: ITEM_SIZE, height: ITEM_SIZE, padding: 1 }}
+      className="active:opacity-70"
     >
       <Image
         source={{ uri: item.uri }}
-        style={{ width: "100%", height: "100%", borderRadius: 2 }}
+        style={{ width: "100%", height: "100%", borderRadius: 4 }}
+        resizeMode="cover"
       />
       {item.mediaType === "video" && (
-        <View className="absolute bottom-1 right-1 bg-black/50 px-1 rounded">
-          <Ionicons name="play" size={10} color="#CCFF00" />
+        <View className="absolute bottom-2 right-2 bg-black/60 h-6 w-6 items-center justify-center rounded-full border border-white/20">
+          <Ionicons name="play" size={12} color="#CCFF00" />
         </View>
       )}
     </Pressable>
@@ -152,23 +184,28 @@ export function MediaPicker({
       onRequestClose={onClose}
     >
       <View className="flex-1 bg-[#121212]">
-        {/* Header avec ton style Lime */}
+        {/* --- HEADER --- */}
         <View
           style={{ paddingTop: insets.top }}
-          className="border-b border-white/10 pb-2"
+          className="border-b border-white/10 pb-4 bg-[#1E1E1E]"
         >
-          <View className="flex-row justify-between items-center px-4 py-2">
-            <Text className="text-white font-bold text-xl">Galerie</Text>
-            <Pressable onPress={onClose}>
-              <Ionicons name="close" size={28} color="white" />
+          <View className="flex-row justify-between items-center px-4 py-3">
+            <Text className="text-white font-bold text-xl">
+              {t("mediaPicker.gallery")}
+            </Text>
+            <Pressable
+              onPress={onClose}
+              className="p-1 bg-white/10 rounded-full"
+            >
+              <Ionicons name="close" size={24} color="white" />
             </Pressable>
           </View>
 
-          {/* Horizonal Albums */}
           <FlatList
             horizontal
-            data={[{ id: "all", title: "Récents" }, ...albums]}
+            data={[{ id: "all", title: t("mediaPicker.recents") }, ...albums]}
             keyExtractor={(item) => item.id}
+            showsHorizontalScrollIndicator={false}
             renderItem={({ item }) => (
               <Pressable
                 onPress={() =>
@@ -176,25 +213,29 @@ export function MediaPicker({
                     item.id === "all" ? null : (item as MediaLibrary.Album),
                   )
                 }
-                className={`ml-4 px-4 py-1 rounded-full ${(!selectedAlbum && item.id === "all") || selectedAlbum?.id === item.id ? "bg-[#CCFF00]" : "bg-white/10"}`}
+                className={`ml-4 px-5 py-2 rounded-full ${
+                  (!selectedAlbum && item.id === "all") ||
+                  selectedAlbum?.id === item.id
+                    ? "bg-[#CCFF00]"
+                    : "bg-white/10"
+                }`}
               >
                 <Text
-                  className={
+                  className={`font-medium ${
                     (!selectedAlbum && item.id === "all") ||
                     selectedAlbum?.id === item.id
                       ? "text-black"
                       : "text-white"
-                  }
+                  }`}
                 >
                   {item.title}
                 </Text>
               </Pressable>
             )}
-            showsHorizontalScrollIndicator={false}
           />
         </View>
 
-        {/* Grid Media */}
+        {/* --- GRILLE --- */}
         <FlatList
           data={assets}
           renderItem={renderItem}
@@ -203,54 +244,69 @@ export function MediaPicker({
           onEndReached={() => loadAssets()}
           onEndReachedThreshold={0.5}
           ListFooterComponent={() =>
-            isLoading ? (
-              <ActivityIndicator color="#CCFF00" className="my-4" />
+            isLoading && hasNextPage ? (
+              <ActivityIndicator color="#CCFF00" className="my-6" />
             ) : null
           }
         />
 
+        {/* --- APERÇU FULLSCREEN --- */}
         {selectedAsset && (
           <View className="absolute inset-0 bg-black z-50">
-            {/* Custom Header for Preview */}
+            {/* Header Aperçu */}
             <View
               style={{ paddingTop: insets.top }}
-              className="absolute top-0 w-full z-10 bg-black/60"
+              className="absolute top-0 w-full z-10 bg-gradient-to-b from-black/80 to-transparent"
             >
-              <View className="flex-row justify-between items-center px-4 py-3">
+              <View className="flex-row justify-between items-center px-4 py-4">
                 <Pressable
                   onPress={() => setSelectedAsset(null)}
-                  className="flex-row items-center gap-2"
+                  className="flex-row items-center bg-black/40 px-3 py-2 rounded-full"
                 >
                   <Ionicons name="chevron-back" size={24} color="white" />
-                  <Text className="text-white font-medium">
-                    {t("mediaPicker.cancel")}
+                  <Text className="text-white ml-1">
+                    {t("mediaPicker.back")}
                   </Text>
                 </Pressable>
 
-                <Text className="text-white font-bold text-lg">
-                  {t("mediaPicker.preview")}
-                </Text>
-
                 <Pressable
                   onPress={() => {
-                    onSelect(selectedAsset.uri);
+                    onSelect(selectedAsset.uri, selectedAsset.mediaType);
                     onClose();
                   }}
-                  className="flex-row items-center gap-1 bg-[#CCFF00] px-4 py-2 rounded-full"
+                  className="bg-[#CCFF00] px-6 py-2 rounded-full flex-row items-center"
                 >
-                  <Ionicons name="checkmark-circle" size={20} color="black" />
-                  <Text className="text-black font-bold">
-                    {t("mediaPicker.select")}
+                  <Text className="text-black font-bold mr-2 text-base">
+                    {t("mediaPicker.validate")}
                   </Text>
+                  <Ionicons name="checkmark-circle" size={20} color="black" />
                 </Pressable>
               </View>
             </View>
 
-            <Image
-              source={{ uri: selectedAsset.uri }}
-              className="flex-1"
-              resizeMode="contain"
-            />
+            {selectedAsset.mediaType === "video" ? (
+              <VideoView
+                player={player}
+                contentFit="contain"
+                style={{
+                  width: width,
+                  height: height - (insets.top + insets.bottom),
+                  marginTop: insets.top,
+                  backgroundColor: "black",
+                }}
+              />
+            ) : (
+              <Image
+                source={{ uri: selectedAsset.uri }}
+                className="flex-1"
+                resizeMode="contain"
+                style={{
+                  width: width,
+                  height: height - (insets.top + insets.bottom),
+                  marginTop: insets.top,
+                }}
+              />
+            )}
           </View>
         )}
       </View>

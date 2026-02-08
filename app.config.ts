@@ -13,6 +13,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     bundleIdentifier: "com.flikk.app",
     icon: "./assets/expo.icon",
     googleServicesFile: "./GoogleService-Info.plist",
+    infoPlist: {
+      NSPhotoLibraryUsageDescription: "Allow Flikk to access your photos.",
+      NSPhotoLibraryAddUsageDescription: "Allow Flikk to add photos.",
+    },
   },
   android: {
     package: "com.flikk.app",
@@ -24,6 +28,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
     predictiveBackGestureEnabled: false,
     googleServicesFile: "./google-services.json",
+    permissions: [
+      "READ_EXTERNAL_STORAGE",
+      "READ_MEDIA_IMAGES",
+      "READ_MEDIA_VIDEO",
+    ],
   },
   web: {
     bundler: "metro",

@@ -135,7 +135,7 @@ export default function ProfilIndex() {
       setIsLoading(true);
       await confirmation.confirm(smsCode.trim());
       setSmsCode("");
-    } catch (_error) {
+    } catch {
       setErrorMessage(t("profile.login.errorCode"));
     } finally {
       setIsLoading(false);
@@ -197,7 +197,8 @@ export default function ProfilIndex() {
       return (
         <KeyboardAvoidingView
           className="flex-1 bg-flikk-dark"
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
           style={{ paddingTop: insets.top }}
         >
           <ScrollView
@@ -346,12 +347,19 @@ export default function ProfilIndex() {
                 )}
               </Pressable>
             </View>
+            {/* Added spacer to ensure the keyboard doesn't cover the last field */}
+            <View style={{ height: 100 }} />
           </ScrollView>
 
           <MediaPicker
             isVisible={showMediaPicker}
             onClose={() => setShowMediaPicker(false)}
-            onSelect={(uri) => {
+            onSelect={(uri, type) => {
+              if (type === "video") {
+                setErrorMessage(t("mediaPicker.errorInvalidFormat"));
+                setShowMediaPicker(false);
+                return;
+              }
               setLogoUri(uri);
               setShowMediaPicker(false);
             }}
@@ -411,67 +419,83 @@ export default function ProfilIndex() {
           </View>
 
           <View className="mt-8 gap-4 px-6">
-            <MenuItem
-              icon="cube-outline"
-              title={t("profile.menu.orders")}
-              subtitle={t("profile.menu.ordersSubtitle")}
-            />
-            <MenuItem
-              icon="heart-outline"
-              title={t("profile.menu.favorites")}
-              subtitle={t("profile.menu.favoritesSubtitle")}
-            />
-            <MenuItem
-              icon="location-outline"
-              title={t("profile.menu.addresses")}
-              subtitle={t("profile.menu.addressesSubtitle")}
-            />
-            <MenuItem
-              icon="help-circle-outline"
-              title={t("profile.menu.support")}
-              subtitle={t("profile.menu.supportSubtitle")}
-            />
-
-            {!userProfile?.isMerchant && (
+            {/* 1. Merchant Block (Top) */}
+            {userProfile?.isMerchant ? (
               <Pressable
-                onPress={() => {
-                  setIsMerchant(true);
-                  setIsEditing(true);
-                }}
-                className="mt-4 flex-row items-center rounded-3xl border border-flikk-lime/30 bg-flikk-lime/5 p-4"
+                onPress={() => setIsEditing(true)}
+                className="flex-row items-center rounded-3xl border border-flikk-lime/30 bg-flikk-lime/5 p-4"
               >
                 <View className="mr-4 h-10 w-10 items-center justify-center rounded-full bg-flikk-lime">
                   <Ionicons name="storefront" size={20} color="#121212" />
                 </View>
                 <View className="flex-1">
                   <Text className="font-display text-base text-flikk-lime">
+                    {t("profile.completion.merchantInfo")}
+                  </Text>
+                  <Text className="mt-0.5 font-body text-xs text-flikk-text-muted">
+                    {userProfile.merchantInfo?.businessName}
+                  </Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#CCFF00" />
+              </Pressable>
+            ) : (
+              <Pressable
+                onPress={() => {
+                  setIsMerchant(true);
+                  setIsEditing(true);
+                }}
+                className="flex-row items-center rounded-3xl border border-white/10 bg-white/5 p-4"
+              >
+                <View className="mr-4 h-10 w-10 items-center justify-center rounded-full bg-white/10">
+                  <Ionicons name="storefront" size={20} color="#FFFFFF" />
+                </View>
+                <View className="flex-1">
+                  <Text className="font-display text-base text-white">
                     {t("profile.menu.becomeMerchant")}
                   </Text>
                   <Text className="mt-0.5 font-body text-xs text-flikk-text-muted">
                     {t("profile.menu.becomeMerchantSubtitle")}
                   </Text>
                 </View>
-                <Feather name="chevron-right" size={20} color="#CCFF00" />
+                <Feather name="chevron-right" size={20} color="#666666" />
               </Pressable>
             )}
 
-            <Pressable
+            {/* 2. Mes Publications */}
+            <MenuItem
+              icon="cube-outline"
+              title={t("profile.menu.publications")}
+              subtitle={t("profile.menu.publicationsSubtitle")}
+            />
+
+            {/* 3. Favoris */}
+            <MenuItem
+              icon="heart-outline"
+              title={t("profile.menu.favorites")}
+              subtitle={t("profile.menu.favoritesSubtitle")}
+            />
+
+            {/* 4. Adresses */}
+            <MenuItem
+              icon="location-outline"
+              title={t("profile.menu.addresses")}
+              subtitle={t("profile.menu.addressesSubtitle")}
+            />
+
+            {/* 5. Modifier le Profil */}
+            <MenuItem
+              icon="person-outline"
+              title={t("profile.menu.editProfile")}
+              subtitle={t("profile.menu.editProfileSubtitle")}
               onPress={() => setIsEditing(true)}
-              className="mt-2 flex-row items-center rounded-3xl bg-white/[0.03] p-4"
-            >
-              <View className="mr-4 h-10 w-10 items-center justify-center rounded-full bg-white/10">
-                <Ionicons name="person-outline" size={20} color="#FFFFFF" />
-              </View>
-              <View className="flex-1">
-                <Text className="font-display text-base text-flikk-text">
-                  {t("profile.menu.editProfile")}
-                </Text>
-                <Text className="mt-0.5 font-body text-xs text-[#666666]">
-                  {t("profile.menu.editProfileSubtitle")}
-                </Text>
-              </View>
-              <Feather name="chevron-right" size={20} color="#666666" />
-            </Pressable>
+            />
+
+            {/* 6. Aide & Support */}
+            <MenuItem
+              icon="help-circle-outline"
+              title={t("profile.menu.support")}
+              subtitle={t("profile.menu.supportSubtitle")}
+            />
           </View>
 
           <View className="flex-1" />
@@ -696,13 +720,18 @@ function MenuItem({
   icon,
   title,
   subtitle,
+  onPress,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
   subtitle: string;
+  onPress?: () => void;
 }) {
   return (
-    <Pressable className="flex-row items-center rounded-3xl bg-white/[0.03] p-4">
+    <Pressable
+      onPress={onPress}
+      className="flex-row items-center rounded-3xl bg-white/[0.03] p-4 active:opacity-70"
+    >
       <View className="mr-4 h-10 w-10 items-center justify-center rounded-full bg-flikk-lime/10">
         <Ionicons name={icon} size={22} color="#CCFF00" />
       </View>
