@@ -93,7 +93,7 @@ export function Discover() {
   );
 
   return (
-    <View className="flex-1 bg-flikk-dark" style={{ paddingTop: insets.top }}>
+    <View className="flex-1 bg-flikk-dark" style={{ paddingTop: insets.top + 12 }}>
       <View className="px-5 pb-4">
         <Text className="font-display text-2xl text-flikk-text">
           {t("tabs.discover")}
@@ -108,6 +108,8 @@ export function Discover() {
             onChangeText={(text) => setSearch(text.toLowerCase())}
             returnKeyType="search"
             selectionColor="#CCFF00"
+            autoCapitalize="none"
+            autoCorrect={false}
           />
           {!!search && (
             <Pressable onPress={() => setSearch("")} className="p-2">
