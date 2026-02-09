@@ -7,7 +7,17 @@ export interface UserMerchantInfo {
   address: string;
   businessPhone: string;
   logoUrl: string;
+  withdrawalMethod?: WithdrawalMethod;
+  withdrawalNumber?: string;
 }
+
+export type WithdrawalMethod =
+  | "nita"
+  | "amana"
+  | "wave"
+  | "airtel"
+  | "zamani"
+  | "moov";
 
 export interface UserProfile {
   uid: string;

@@ -95,6 +95,17 @@
       "businessPhone": "Business Phone",
       "logo": "Store Logo",
       "uploadLogo": "Upload Logo",
+      "withdrawalMethod": "Withdrawal method",
+      "withdrawalNumber": "Withdrawal account number",
+      "withdrawalNumberPlaceholder": "+227 90 90 00 00",
+      "logoHint": "Logo or merchant photo required",
+      "withdrawalNote": "Depending on the withdrawal method, service fees may apply.",
+      "nita": "Nita Transfert",
+      "amana": "Amana Transfert",
+      "wave": "Portefeuille Mobile Wave",
+      "airtel": "Airtel Money",
+      "zamani": "Zamani Cash",
+      "moov": "Moov Flooz",
       "save": "Save Profile"
     }
   },
@@ -113,6 +124,11 @@
     "deleteSubtitle": "This publication will be removed from the feed.",
     "delete": "Delete",
     "cancel": "Cancel"
+  },
+  "favorites": {
+    "title": "Favorites",
+    "empty": "No favorites yet",
+    "auth": "Sign in to see your favorites."
   },
   "mediaPicker": {
     "title": "Select Media",

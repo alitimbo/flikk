@@ -26,6 +26,7 @@ import { useTranslation } from "react-i18next";
 import { useRouter } from "expo-router";
 import { MediaPicker } from "@/components/ui/MediaPicker";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import type { WithdrawalMethod } from "@/types";
 
 export default function ProfilIndex() {
   const insets = useSafeAreaInsets();
@@ -64,6 +65,9 @@ export default function ProfilIndex() {
   const [taxId, setTaxId] = useState("");
   const [address, setAddress] = useState("");
   const [businessPhone, setBusinessPhone] = useState("");
+  const [withdrawalMethod, setWithdrawalMethod] =
+    useState<WithdrawalMethod>("nita");
+  const [withdrawalNumber, setWithdrawalNumber] = useState("");
   const [logoUri, setLogoUri] = useState<string | null>(null);
   const [showMediaPicker, setShowMediaPicker] = useState(false);
 
@@ -94,6 +98,10 @@ export default function ProfilIndex() {
         setTaxId(userProfile.merchantInfo.taxId || "");
         setAddress(userProfile.merchantInfo.address || "");
         setBusinessPhone(userProfile.merchantInfo.businessPhone || "");
+        setWithdrawalMethod(
+          userProfile.merchantInfo.withdrawalMethod || "nita",
+        );
+        setWithdrawalNumber(userProfile.merchantInfo.withdrawalNumber || "");
         setLogoUri(userProfile.merchantInfo.logoUrl || null);
       }
     }
@@ -119,6 +127,13 @@ export default function ProfilIndex() {
     [phoneNumber, resendSeconds],
   );
   const canConfirm = useMemo(() => smsCode.trim().length >= 4, [smsCode]);
+  const canSaveMerchant =
+    !isMerchant ||
+    (businessName.trim().length > 0 &&
+      address.trim().length > 0 &&
+      businessPhone.trim().length > 0 &&
+      withdrawalNumber.trim().length > 0 &&
+      !!logoUri);
 
   const handleSendCode = useCallback(async () => {
     setErrorMessage(null);
@@ -159,6 +174,7 @@ export default function ProfilIndex() {
 
   const handleSaveProfile = async () => {
     if (!authUser || !firstName || !lastName) return;
+    if (isMerchant && !canSaveMerchant) return;
 
     try {
       let finalLogoUrl = logoUri;
@@ -183,6 +199,8 @@ export default function ProfilIndex() {
               taxId,
               address,
               businessPhone,
+              withdrawalMethod,
+              withdrawalNumber,
               logoUrl: finalLogoUrl || "",
             }
           : undefined,
@@ -310,7 +328,15 @@ export default function ProfilIndex() {
                         </View>
                       )}
                     </Pressable>
+                    <Text className="text-xs text-flikk-text-muted">
+                      {t("profile.completion.logoHint")}
+                      <Text className="text-[#FF4D6D]"> *</Text>
+                    </Text>
 
+                    <Text className="text-sm font-bold text-flikk-text-muted mb-1 uppercase tracking-widest pl-1">
+                      {t("profile.completion.businessName")}
+                      <Text className="text-[#FF4D6D]"> *</Text>
+                    </Text>
                     <TextInput
                       className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
                       placeholder={t("profile.completion.businessName")}
@@ -318,6 +344,10 @@ export default function ProfilIndex() {
                       value={businessName}
                       onChangeText={setBusinessName}
                     />
+
+                    <Text className="text-sm font-bold text-flikk-text-muted mb-1 uppercase tracking-widest pl-1">
+                      {t("profile.completion.taxId")}
+                    </Text>
                     <TextInput
                       className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
                       placeholder={t("profile.completion.taxId")}
@@ -325,6 +355,11 @@ export default function ProfilIndex() {
                       value={taxId}
                       onChangeText={setTaxId}
                     />
+
+                    <Text className="text-sm font-bold text-flikk-text-muted mb-1 uppercase tracking-widest pl-1">
+                      {t("profile.completion.address")}
+                      <Text className="text-[#FF4D6D]"> *</Text>
+                    </Text>
                     <TextInput
                       className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
                       placeholder={t("profile.completion.address")}
@@ -332,6 +367,11 @@ export default function ProfilIndex() {
                       value={address}
                       onChangeText={setAddress}
                     />
+
+                    <Text className="text-sm font-bold text-flikk-text-muted mb-1 uppercase tracking-widest pl-1">
+                      {t("profile.completion.businessPhone")}
+                      <Text className="text-[#FF4D6D]"> *</Text>
+                    </Text>
                     <TextInput
                       className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
                       placeholder={t("profile.completion.businessPhone")}
@@ -340,15 +380,77 @@ export default function ProfilIndex() {
                       onChangeText={setBusinessPhone}
                       keyboardType="phone-pad"
                     />
+
+                    <View className="mt-2">
+                      <Text className="text-sm font-bold text-flikk-text-muted mb-2 uppercase tracking-widest pl-1">
+                        {t("profile.completion.withdrawalMethod")}
+                        <Text className="text-[#FF4D6D]"> *</Text>
+                      </Text>
+                      <Text className="text-xs text-flikk-text-muted mb-3">
+                        {t("profile.completion.withdrawalNote")}
+                      </Text>
+                      <View className="gap-2">
+                        {[
+                          { key: "nita", label: t("profile.completion.nita") },
+                          { key: "amana", label: t("profile.completion.amana") },
+                          { key: "wave", label: t("profile.completion.wave") },
+                          { key: "airtel", label: t("profile.completion.airtel") },
+                          { key: "zamani", label: t("profile.completion.zamani") },
+                          { key: "moov", label: t("profile.completion.moov") },
+                        ].map((option) => {
+                          const selected = withdrawalMethod === option.key;
+                          return (
+                            <Pressable
+                              key={option.key}
+                              onPress={() =>
+                                setWithdrawalMethod(option.key as WithdrawalMethod)
+                              }
+                              className={`flex-row items-center justify-between rounded-2xl border px-4 py-3 ${
+                                selected
+                                  ? "border-flikk-lime bg-flikk-lime/10"
+                                  : "border-white/10 bg-flikk-card"
+                              }`}
+                            >
+                              <Text className="text-flikk-text font-display text-sm">
+                                {option.label}
+                              </Text>
+                              <View
+                                className={`h-5 w-5 rounded-full border items-center justify-center ${
+                                  selected ? "border-flikk-lime" : "border-white/30"
+                                }`}
+                              >
+                                {selected && (
+                                  <View className="h-2.5 w-2.5 rounded-full bg-flikk-lime" />
+                                )}
+                              </View>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                      <Text className="text-sm font-bold text-flikk-text-muted mb-1 uppercase tracking-widest pl-1 mt-3">
+                        {t("profile.completion.withdrawalNumber")}
+                        <Text className="text-[#FF4D6D]"> *</Text>
+                      </Text>
+                      <TextInput
+                        className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
+                        placeholder={t(
+                          "profile.completion.withdrawalNumberPlaceholder",
+                        )}
+                        placeholderTextColor="#666666"
+                        value={withdrawalNumber}
+                        onChangeText={setWithdrawalNumber}
+                        keyboardType="phone-pad"
+                      />
+                    </View>
                   </View>
                 )}
 
                 <Pressable
                   className={`mt-6 h-14 items-center justify-center rounded-full bg-flikk-lime ${
-                    !firstName || !lastName ? "opacity-50" : ""
+                    !firstName || !lastName || !canSaveMerchant ? "opacity-50" : ""
                   }`}
                   onPress={handleSaveProfile}
-                  disabled={!firstName || !lastName || isUpdating}
+                  disabled={!firstName || !lastName || !canSaveMerchant || isUpdating}
                 >
                   {isUpdating ? (
                     <ActivityIndicator color="#121212" />
@@ -488,14 +590,16 @@ export default function ProfilIndex() {
               icon="heart-outline"
               title={t("profile.menu.favorites")}
               subtitle={t("profile.menu.favoritesSubtitle")}
+              onPress={() => router.push("/(tabs)/profil/favorites")}
             />
 
-            {/* 4. Adresses */}
+            {/*
             <MenuItem
               icon="location-outline"
               title={t("profile.menu.addresses")}
               subtitle={t("profile.menu.addressesSubtitle")}
             />
+            */}
 
             {/* 5. Modifier le Profil */}
             <MenuItem

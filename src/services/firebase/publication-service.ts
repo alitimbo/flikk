@@ -15,10 +15,12 @@ import {
   where,
   writeBatch,
   increment,
+  documentId,
   FirebaseFirestoreTypes,
 } from "@react-native-firebase/firestore";
 import { Publication, UserProfile } from "@/types";
 import { buildSearchTokens, normalizeSearchToken } from "@/utils/search";
+import { chunkArray } from "@/utils/array";
 
 export class PublicationService {
   private static collection = collection(FirebaseService.db, "publications");
@@ -206,6 +208,26 @@ export class PublicationService {
       status: "deleted",
       updatedAt: serverTimestamp(),
     });
+  }
+
+  static async getByIds(ids: string[]): Promise<Publication[]> {
+    if (ids.length === 0) return [];
+    const chunks = chunkArray(ids, 10);
+    const results = await Promise.all(
+      chunks.map(async (chunk) => {
+        const q = query(
+          this.collection,
+          where(documentId(), "in", chunk),
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...(docSnap.data() as Publication),
+        }));
+      }),
+    );
+
+    return results.flat().filter((pub) => pub.status === "ready");
   }
 
   static async getByMerchant(

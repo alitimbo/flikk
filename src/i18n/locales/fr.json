@@ -95,6 +95,17 @@
       "businessPhone": "Téléphone du commerce",
       "logo": "Logo du magasin",
       "uploadLogo": "Ajouter un logo",
+      "withdrawalMethod": "Méthode de retrait",
+      "withdrawalNumber": "Numéro de retrait",
+      "withdrawalNumberPlaceholder": "+227 90 90 00 00",
+      "logoHint": "Logo ou photo du commerçant obligatoire",
+      "withdrawalNote": "Selon la méthode de retrait, des frais de service peuvent s'appliquer.",
+      "nita": "Nita Transfert",
+      "amana": "Amana Transfert",
+      "wave": "Portefeuille Mobile Wave",
+      "airtel": "Airtel Money",
+      "zamani": "Zamani Cash",
+      "moov": "Moov Flooz",
       "save": "Enregistrer mon profil"
     }
   },
@@ -113,6 +124,11 @@
     "deleteSubtitle": "Cette publication sera retirée du feed.",
     "delete": "Supprimer",
     "cancel": "Annuler"
+  },
+  "favorites": {
+    "title": "Favoris",
+    "empty": "Aucun favori pour le moment",
+    "auth": "Connecte-toi pour voir tes favoris."
   },
   "mediaPicker": {
     "title": "Choisir un média",

@@ -13,6 +13,15 @@ import {
 import { chunkArray } from "@/utils/array";
 
 export class FavoriteService {
+  static async getFavoriteIds(uid: string): Promise<string[]> {
+    const favoritesCollection = collection(
+      FirebaseService.db,
+      `users/${uid}/favorites`,
+    );
+    const snapshot = await getDocs(favoritesCollection);
+    return snapshot.docs.map((docSnap) => docSnap.id);
+  }
+
   static async getFavoritesByPublicationIds(
     uid: string,
     publicationIds: string[],
