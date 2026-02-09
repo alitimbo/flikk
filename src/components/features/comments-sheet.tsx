@@ -438,7 +438,7 @@ export function CommentsSheet({
                 </View>
               )}
 
-              <View className="flex-row items-end gap-3">
+              <View className="flex-row items-center gap-3">
                 <View className="flex-1 rounded-2xl border border-white/10 bg-flikk-dark px-4 py-3">
                   <TextInput
                     placeholder={t("comments.placeholder")}
@@ -597,6 +597,7 @@ function CommentCard({
             {comment.text}
           </Text>
           <View className="mt-3 flex-row items-center gap-4">
+            {/*
             <Pressable
               className="flex-row items-center gap-1"
               onPress={handleLike}
@@ -611,6 +612,7 @@ function CommentCard({
                 {likeCount}
               </Text>
             </Pressable>
+            */}
             <Pressable
               className="flex-row items-center gap-1"
               onPress={() =>
@@ -765,17 +767,23 @@ function ReplyCard({
         </Text>
         <Pressable
           className="mt-2 flex-row items-center gap-1"
-          onPress={handleLike}
-          disabled={isLikePending}
         >
-          <Ionicons
-            name={localLiked ? "heart" : "heart-outline"}
-            size={12}
-            color={localLiked ? "#FF4D6D" : "#B3B3B3"}
-          />
-          <Text className="text-[10px] text-flikk-text-muted">
-            {likeCount}
-          </Text>
+          {/*
+          <Pressable
+            className="flex-row items-center gap-1"
+            onPress={handleLike}
+            disabled={isLikePending}
+          >
+            <Ionicons
+              name={localLiked ? "heart" : "heart-outline"}
+              size={12}
+              color={localLiked ? "#FF4D6D" : "#B3B3B3"}
+            />
+            <Text className="text-[10px] text-flikk-text-muted">
+              {likeCount}
+            </Text>
+          </Pressable>
+          */}
         </Pressable>
       </View>
     </View>
