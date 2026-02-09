@@ -62,7 +62,11 @@ export function CommentsSheet({
   const authUser = getAuth().currentUser;
   const { data: userProfile } = useUserProfile(authUser?.uid);
 
-  const commentsQuery = usePublicationComments(publicationId, sort);
+  const commentsQuery = usePublicationComments(
+    publicationId,
+    sort,
+    isVisible,
+  );
   const comments = useMemo(
     () => commentsQuery.data?.pages.flatMap((page) => page.comments) ?? [],
     [commentsQuery.data],
@@ -93,8 +97,18 @@ export function CommentsSheet({
     if (!isVisible) {
       setSheetTranslateY(0);
       setReplyTarget(null);
+      return;
     }
-  }, [isVisible]);
+    if (publicationId) {
+      void commentsQuery.refetch();
+    }
+  }, [isVisible, publicationId, commentsQuery]);
+
+  useEffect(() => {
+    if (commentsQuery.isError && commentsQuery.error) {
+      console.log("[Comments] Firestore error:", commentsQuery.error);
+    }
+  }, [commentsQuery.isError, commentsQuery.error]);
 
   useEffect(() => {
     const showSub = Keyboard.addListener("keyboardDidShow", (event) => {
@@ -367,6 +381,17 @@ export function CommentsSheet({
               {commentsQuery.isLoading ? (
                 <View className="px-6">
                   <CommentsSkeleton />
+                </View>
+              ) : commentsQuery.isError ? (
+                <View className="items-center justify-center px-6 py-10">
+                  <Text className="text-sm text-flikk-text-muted text-center">
+                    {t("comments.error")}
+                  </Text>
+                  {__DEV__ && (
+                    <Text className="mt-2 text-[11px] text-[#FF4D6D] text-center">
+                      {String(commentsQuery.error)}
+                    </Text>
+                  )}
                 </View>
               ) : comments.length === 0 ? (
                 <View className="items-center justify-center px-6 py-10">

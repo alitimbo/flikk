@@ -199,6 +199,7 @@
     "countLabel": "commentaires",
     "sortTop": "Les plus utiles",
     "sortNew": "Les plus recents",
+    "error": "Impossible de charger les commentaires pour le moment.",
     "empty": "Aucun commentaire pour le moment",
     "placeholder": "Ecrire un commentaire...",
     "reply": "Repondre",

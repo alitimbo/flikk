@@ -11,6 +11,7 @@ type CommentsPage = {
 export function usePublicationComments(
   publicationId: string,
   sort: CommentSort,
+  enabled = true,
 ) {
   return useInfiniteQuery({
     queryKey: ["comments", publicationId, sort],
@@ -23,5 +24,6 @@ export function usePublicationComments(
       ),
     getNextPageParam: (lastPage: CommentsPage) =>
       lastPage.lastDoc ?? undefined,
+    enabled: enabled && publicationId.length > 0,
   });
 }

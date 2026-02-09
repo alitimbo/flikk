@@ -33,6 +33,7 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
     refetch,
   } = useFeed();
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [isScrollLocked, setIsScrollLocked] = useState(false);
   const activeIdRef = useRef<string | null>(null);
   const listRef = useRef<FlashList<Publication>>(null);
   const lastInteractionRef = useRef(0);
@@ -144,6 +145,7 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
               void fetchNextPage();
             }
           }}
+          onCommentsOpenChange={(isOpen) => setIsScrollLocked(isOpen)}
         />
       </View>
     ),
@@ -154,6 +156,7 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
       hasNextPage,
       isFetchingNextPage,
       fetchNextPage,
+      setIsScrollLocked,
     ],
   );
 
@@ -275,6 +278,7 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
           snapToInterval={ITEM_HEIGHT}
           snapToAlignment="start"
           decelerationRate="fast"
+          scrollEnabled={!isScrollLocked}
           onEndReached={() => {
             if (hasNextPage && !isFetchingNextPage) {
               void fetchNextPage();

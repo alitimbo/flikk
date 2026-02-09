@@ -58,13 +58,11 @@ export class CommentService {
       id: docSnap.id,
       ...(docSnap.data() as Comment),
     }));
+    const hasMore = snapshot.docs.length === pageSize;
 
     return {
       comments,
-      lastDoc:
-        snapshot.docs.length > 0
-          ? snapshot.docs[snapshot.docs.length - 1]
-          : null,
+      lastDoc: hasMore ? snapshot.docs[snapshot.docs.length - 1] : null,
     };
   }
 
@@ -87,13 +85,11 @@ export class CommentService {
       id: docSnap.id,
       ...(docSnap.data() as Comment),
     }));
+    const hasMore = snapshot.docs.length === pageSize;
 
     return {
       comments,
-      lastDoc:
-        snapshot.docs.length > 0
-          ? snapshot.docs[snapshot.docs.length - 1]
-          : null,
+      lastDoc: hasMore ? snapshot.docs[snapshot.docs.length - 1] : null,
     };
   }
 

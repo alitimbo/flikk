@@ -39,6 +39,7 @@ interface FeedItemProps {
   onToggleFavorite?: () => void;
   onRequestNext?: (index: number) => void;
   onUserAction?: () => void;
+  onCommentsOpenChange?: (isOpen: boolean) => void;
 }
 
 const { height } = Dimensions.get("window");
@@ -52,6 +53,7 @@ export function FeedItem({
   onToggleFavorite,
   onRequestNext,
   onUserAction,
+  onCommentsOpenChange,
 }: FeedItemProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -178,12 +180,12 @@ export function FeedItem({
   }, [videoUri, player]);
 
   useEffect(() => {
-    if (isActive) {
+    if (isActive && !isCommentsOpen) {
       player.play();
     } else {
       player.pause();
     }
-  }, [isActive, player]);
+  }, [isActive, isCommentsOpen, player]);
 
   const togglePlayback = useCallback(() => {
     onUserAction?.();
@@ -286,7 +288,8 @@ export function FeedItem({
   const handleCommentPress = useCallback(() => {
     onUserAction?.();
     setIsCommentsOpen(true);
-  }, [onUserAction]);
+    onCommentsOpenChange?.(true);
+  }, [onUserAction, onCommentsOpenChange]);
 
   const closePaymentSheet = useCallback(() => {
     setIsPaymentOpen(false);
@@ -642,7 +645,10 @@ export function FeedItem({
       <CommentsSheet
         publicationId={publication.id ?? ""}
         isVisible={isCommentsOpen}
-        onClose={() => setIsCommentsOpen(false)}
+        onClose={() => {
+          setIsCommentsOpen(false);
+          onCommentsOpenChange?.(false);
+        }}
         totalCount={commentCount}
         onCountChange={(delta) =>
           setCommentCount((prev) => Math.max(0, prev + delta))

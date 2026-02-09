@@ -199,6 +199,7 @@
     "countLabel": "comments",
     "sortTop": "Most useful",
     "sortNew": "Newest",
+    "error": "Unable to load comments right now.",
     "empty": "No comments yet",
     "placeholder": "Write a comment...",
     "reply": "Reply",
