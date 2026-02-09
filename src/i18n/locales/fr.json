@@ -193,5 +193,25 @@
       "subtitle": "Vous devez être connecté pour acheter. Connectez-vous ou créez un compte.",
       "cta": "Aller au Profil"
     }
+  },
+  "comments": {
+    "title": "Commentaires",
+    "countLabel": "commentaires",
+    "sortTop": "Les plus utiles",
+    "sortNew": "Les plus recents",
+    "empty": "Aucun commentaire pour le moment",
+    "placeholder": "Ecrire un commentaire...",
+    "reply": "Repondre",
+    "replies": "reponses",
+    "showReplies": "Voir {{count}} reponses",
+    "hideReplies": "Masquer les reponses",
+    "loadMoreReplies": "Voir plus de reponses",
+    "replyingTo": "Reponse a",
+    "unknown": "Utilisateur",
+    "auth": {
+      "title": "Connexion requise",
+      "subtitle": "Connecte-toi pour commenter ou aimer un commentaire.",
+      "cta": "Aller au Profil"
+    }
   }
 }

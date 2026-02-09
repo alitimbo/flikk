@@ -58,3 +58,20 @@ export interface Publication {
   createdAt?: any;
   updatedAt?: any;
 }
+
+export type CommentSort = "top" | "new";
+
+export interface Comment {
+  id?: string;
+  publicationId: string;
+  userId: string;
+  text: string;
+  likeCount: number;
+  replyCount: number;
+  parentId?: string | null;
+  authorName?: string;
+  authorAvatarUrl?: string;
+  authorIsMerchant?: boolean;
+  createdAt?: any;
+  updatedAt?: any;
+}

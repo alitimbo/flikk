@@ -193,5 +193,25 @@
       "subtitle": "You need an account to buy. Please sign in or create one.",
       "cta": "Go to Profile"
     }
+  },
+  "comments": {
+    "title": "Comments",
+    "countLabel": "comments",
+    "sortTop": "Most useful",
+    "sortNew": "Newest",
+    "empty": "No comments yet",
+    "placeholder": "Write a comment...",
+    "reply": "Reply",
+    "replies": "replies",
+    "showReplies": "View {{count}} replies",
+    "hideReplies": "Hide replies",
+    "loadMoreReplies": "Load more replies",
+    "replyingTo": "Replying to",
+    "unknown": "User",
+    "auth": {
+      "title": "Sign in required",
+      "subtitle": "Sign in to comment or like a comment.",
+      "cta": "Go to Profile"
+    }
   }
 }

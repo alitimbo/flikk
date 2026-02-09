@@ -28,6 +28,7 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getAuth } from "@react-native-firebase/auth";
 import { useRouter } from "expo-router";
+import { CommentsSheet } from "@/components/features/comments-sheet";
 
 interface FeedItemProps {
   publication: Publication;
@@ -64,6 +65,10 @@ export function FeedItem({
   const barWidthRef = useRef(1);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [isAuthRequiredOpen, setIsAuthRequiredOpen] = useState(false);
+  const [isCommentsOpen, setIsCommentsOpen] = useState(false);
+  const [commentCount, setCommentCount] = useState(
+    publication.commentCount || 0,
+  );
   const [paymentMethod, setPaymentMethod] = useState<
     "airtel" | "moov" | "zamani"
   >("airtel");
@@ -128,6 +133,10 @@ export function FeedItem({
   useEffect(() => {
     setViewTracked(false);
   }, [publication.id]);
+
+  useEffect(() => {
+    setCommentCount(publication.commentCount || 0);
+  }, [publication.id, publication.commentCount]);
 
   // Handle Play/Pause and View Tracking
   useEffect(() => {
@@ -275,12 +284,9 @@ export function FeedItem({
   }, [openAuthRequired, onToggleFavorite]);
 
   const handleCommentPress = useCallback(() => {
-    const user = getAuth().currentUser;
-    if (!user) {
-      openAuthRequired();
-      return;
-    }
-  }, [openAuthRequired]);
+    onUserAction?.();
+    setIsCommentsOpen(true);
+  }, [onUserAction]);
 
   const closePaymentSheet = useCallback(() => {
     setIsPaymentOpen(false);
@@ -488,7 +494,7 @@ export function FeedItem({
                 color="white"
               />
               <Text className="text-white font-medium text-[10px] mt-1">
-                {publication.commentCount || 0}
+                {commentCount}
               </Text>
             </Pressable>
 
@@ -632,6 +638,16 @@ export function FeedItem({
           </Pressable>
         </View>
       </Modal>
+
+      <CommentsSheet
+        publicationId={publication.id ?? ""}
+        isVisible={isCommentsOpen}
+        onClose={() => setIsCommentsOpen(false)}
+        totalCount={commentCount}
+        onCountChange={(delta) =>
+          setCommentCount((prev) => Math.max(0, prev + delta))
+        }
+      />
     </View>
   );
 }
