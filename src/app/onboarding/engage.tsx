@@ -3,17 +3,23 @@ import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { OnboardingShell } from "@/components/features/onboarding-shell";
 import { OnboardingSwipe } from "@/components/features/onboarding-swipe";
+import { MMKVStorage } from "@/storage/mmkv";
 
 const IMAGE = require("@/assets/onboarding/three.png");
+const ONBOARDING_KEY = "flikk:onboarding:seen";
 
 export default function EngageScreen() {
   const router = useRouter();
   const { t } = useTranslation();
+  const finishOnboarding = () => {
+    MMKVStorage.setItem(ONBOARDING_KEY, "1");
+    router.replace("/(tabs)/home");
+  };
 
   return (
     <OnboardingShell backgroundClassName="bg-flikk-dark">
       <OnboardingSwipe
-        onSwipeLeft={() => router.replace("/(tabs)/home")}
+        onSwipeLeft={finishOnboarding}
         onSwipeRight={() => router.push("/onboarding/value")}
       >
         <View className="flex-1 overflow-hidden rounded-3xl">
@@ -36,7 +42,7 @@ export default function EngageScreen() {
                 {t("onboarding.engageBody")}
               </Text>
               <Pressable
-                onPress={() => router.replace("/(tabs)/home")}
+                onPress={finishOnboarding}
                 className="mx-auto w-full rounded-full bg-flikk-lime py-4"
               >
                 <Text className="text-center font-display text-base text-black">
