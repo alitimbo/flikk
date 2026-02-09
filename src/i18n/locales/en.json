@@ -22,6 +22,10 @@
     "purchases": "Purchases",
     "profile": "Profile"
   },
+  "discover": {
+    "searchPlaceholder": "Search products, hashtags, merchants...",
+    "empty": "No publications found"
+  },
   "profile": {
     "title": "My Profile",
     "memberType": "Flikk Member",
@@ -111,6 +115,11 @@
       "subtitle": "Posting products is available only to members. Sign in to continue.",
       "ctaProfile": "Go to Profile"
     },
+    "merchantGate": {
+      "title": "Merchant account required",
+      "subtitle": "Publishing is available only to merchants. Complete your shop setup to continue.",
+      "cta": "Complete my shop"
+    },
     "placeholders": {
       "productName": "e.g. iPhone 15 Pro",
       "title": "What are you selling?",
@@ -123,5 +132,20 @@
     "hot": "Hot: {{count}} orders",
     "buyNow": "Buy Now",
     "viewsLabel": "{{count}} views"
+  },
+  "payment": {
+    "title": "Select payment method",
+    "subtitle": "Choose a payment option and confirm your number.",
+    "airtel": "Airtel Money",
+    "moov": "Moov Flooz",
+    "zamani": "Zamani Cash",
+    "phoneLabel": "Phone Number",
+    "phonePlaceholder": "e.g. 90 12 34 56",
+    "confirm": "Confirm",
+    "auth": {
+      "title": "Sign in required",
+      "subtitle": "You need an account to buy. Please sign in or create one.",
+      "cta": "Go to Profile"
+    }
   }
 }

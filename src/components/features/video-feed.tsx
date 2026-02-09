@@ -1,21 +1,21 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  View,
-  ActivityIndicator,
-  ViewToken,
-  useWindowDimensions,
-} from "react-native";
+import { View, ViewToken, useWindowDimensions } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Publication } from "@/types";
 import { FeedItem } from "@/components/feed/FeedItem";
 import { useFeed } from "@/hooks/useFeed";
 import { useFocusEffect } from "expo-router";
+import { SkeletonFeedItem } from "@/components/ui/Skeleton";
 
 const TAB_BAR_HEIGHT = 72;
 const AUTO_ADVANCE_IDLE_MS = 3000;
 
-export default function VideoFeed() {
+type VideoFeedProps = {
+  initialId?: string;
+};
+
+export default function VideoFeed({ initialId }: VideoFeedProps) {
   const insets = useSafeAreaInsets();
   const { height: screenHeight } = useWindowDimensions();
   const {
@@ -32,6 +32,17 @@ export default function VideoFeed() {
   const listRef = useRef<FlashList<Publication>>(null);
   const lastInteractionRef = useRef(0);
   const pendingAdvanceIndexRef = useRef<number | null>(null);
+  const initialTargetRef = useRef<string | null>(initialId ?? null);
+  const initialScrollDoneRef = useRef(false);
+
+  useEffect(() => {
+    if (initialId) {
+      initialTargetRef.current = initialId;
+      initialScrollDoneRef.current = false;
+      activeIdRef.current = null;
+      setActiveId(null);
+    }
+  }, [initialId]);
 
   const ITEM_HEIGHT = screenHeight - TAB_BAR_HEIGHT - insets.bottom;
 
@@ -123,11 +134,45 @@ export default function VideoFeed() {
     ],
   );
 
-  useEffect(() => {
-    if (!activeIdRef.current && publications.length > 0) {
-      setActiveIdSafe(publications[0].id ?? null);
+  const attemptInitialScroll = useCallback(() => {
+    if (publications.length === 0) return;
+    if (initialScrollDoneRef.current) return;
+
+    const targetId = initialTargetRef.current;
+    if (targetId) {
+      const targetIndex = publications.findIndex((item) => item.id === targetId);
+      if (targetIndex >= 0) {
+        requestAnimationFrame(() => {
+          listRef.current?.scrollToIndex({
+            index: targetIndex,
+            animated: false,
+          });
+          setActiveIdSafe(publications[targetIndex].id ?? null);
+          initialScrollDoneRef.current = true;
+        });
+        return;
+      }
+      if (hasNextPage && !isFetchingNextPage) {
+        void fetchNextPage();
+      }
+      return;
     }
-  }, [publications, setActiveIdSafe]);
+
+    if (!activeIdRef.current) {
+      setActiveIdSafe(publications[0].id ?? null);
+      initialScrollDoneRef.current = true;
+    }
+  }, [
+    publications,
+    setActiveIdSafe,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  ]);
+
+  useEffect(() => {
+    attemptInitialScroll();
+  }, [attemptInitialScroll, publications.length]);
 
   useFocusEffect(
     useCallback(() => {
@@ -149,38 +194,48 @@ export default function VideoFeed() {
 
   return (
     <View className="flex-1 bg-flikk-dark">
-      <FlashList
-        ref={listRef}
-        data={publications}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id!}
-        pagingEnabled
-        showsVerticalScrollIndicator={false}
-        snapToInterval={ITEM_HEIGHT}
-        snapToAlignment="start"
-        decelerationRate="fast"
-        onEndReached={() => {
-          if (hasNextPage && !isFetchingNextPage) {
-            void fetchNextPage();
+      {isLoading && publications.length === 0 ? (
+        <SkeletonFeedItem height={ITEM_HEIGHT} />
+      ) : (
+        <FlashList
+          ref={listRef}
+          data={publications}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id!}
+          onScrollToIndexFailed={({ index }) => {
+            setTimeout(() => {
+              listRef.current?.scrollToIndex({
+                index,
+                animated: false,
+              });
+            }, 120);
+          }}
+          pagingEnabled
+          showsVerticalScrollIndicator={false}
+          snapToInterval={ITEM_HEIGHT}
+          snapToAlignment="start"
+          decelerationRate="fast"
+          onEndReached={() => {
+            if (hasNextPage && !isFetchingNextPage) {
+              void fetchNextPage();
+            }
+          }}
+          onEndReachedThreshold={0.5}
+          onRefresh={onRefresh}
+          refreshing={isRefetching && !isFetchingNextPage}
+          viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs}
+          removeClippedSubviews
+          maxToRenderPerBatch={2}
+          windowSize={5}
+          estimatedItemSize={ITEM_HEIGHT}
+          disableRecycling={false}
+          ListFooterComponent={() =>
+            isFetchingNextPage ? (
+              <SkeletonFeedItem height={ITEM_HEIGHT} />
+            ) : null
           }
-        }}
-        onEndReachedThreshold={0.5}
-        onRefresh={onRefresh}
-        refreshing={isRefetching && !isFetchingNextPage}
-        viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs}
-        removeClippedSubviews
-        maxToRenderPerBatch={2}
-        windowSize={5}
-        estimatedItemSize={ITEM_HEIGHT}
-        disableRecycling={false}
-        ListFooterComponent={() =>
-          (isFetchingNextPage || isLoading) && !isRefetching ? (
-            <View className="py-10">
-              <ActivityIndicator color="#CCFF00" size="large" />
-            </View>
-          ) : null
-        }
-      />
+        />
+      )}
     </View>
   );
 }

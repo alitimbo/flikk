@@ -22,6 +22,7 @@ import auth from "@react-native-firebase/auth";
 import type { FirebaseAuthTypes } from "@react-native-firebase/auth";
 import { FirebaseService } from "@/services/firebase/firebase-service";
 import { useRouter } from "expo-router";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 export default function ActionIndex() {
   const { t } = useTranslation();
@@ -47,6 +48,10 @@ export default function ActionIndex() {
     });
     return unsubscribe;
   }, []);
+
+  const { data: userProfile, isLoading: isProfileLoading } = useUserProfile(
+    authUser?.uid,
+  );
 
   const handlePublish = useCallback(async () => {
     const user = auth().currentUser;
@@ -132,6 +137,38 @@ export default function ActionIndex() {
             >
               <Text className="font-display text-base text-flikk-dark">
                 {t("action.auth.ctaProfile")}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  if (authUser && !isProfileLoading && userProfile && !userProfile.isMerchant) {
+    return (
+      <View
+        className="flex-1 bg-flikk-dark"
+        style={{ paddingTop: insets.top }}
+      >
+        <View className="flex-1 items-center justify-center px-6">
+          <View className="w-full max-w-[420px] rounded-3xl border border-white/10 bg-flikk-card p-6">
+            <View className="mb-4 h-12 w-12 items-center justify-center rounded-2xl bg-flikk-lime/10">
+              <Ionicons name="storefront" size={22} color="#CCFF00" />
+            </View>
+            <Text className="font-display text-lg text-flikk-text">
+              {t("action.merchantGate.title")}
+            </Text>
+            <Text className="mt-2 font-body text-sm text-flikk-text-muted">
+              {t("action.merchantGate.subtitle")}
+            </Text>
+
+            <Pressable
+              className="mt-6 h-12 items-center justify-center rounded-full bg-flikk-lime"
+              onPress={() => router.push("/(tabs)/profil")}
+            >
+              <Text className="font-display text-base text-flikk-dark">
+                {t("action.merchantGate.cta")}
               </Text>
             </Pressable>
           </View>
@@ -337,6 +374,7 @@ export default function ActionIndex() {
           setPickerMode(null);
         }}
       />
+
     </KeyboardAvoidingView>
   );
 }

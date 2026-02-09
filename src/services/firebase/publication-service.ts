@@ -3,6 +3,7 @@ import firestore, {
   FirebaseFirestoreTypes,
 } from "@react-native-firebase/firestore";
 import { Publication } from "@/types";
+import { buildSearchTokens, normalizeSearchToken } from "@/utils/search";
 
 export class PublicationService {
   private static collection = FirebaseService.db.collection("publications");
@@ -20,8 +21,16 @@ export class PublicationService {
       | "viewCount"
     >,
   ): Promise<string> {
+    const searchTokens = buildSearchTokens([
+      publication.productName,
+      publication.title,
+      publication.hashtags?.join(" "),
+      publication.merchantName ?? "",
+    ]);
+
     const docRef = await this.collection.add({
       ...publication,
+      searchTokens,
       orderCount: 0,
       commentCount: 0,
       likeCount: 0,
@@ -54,6 +63,48 @@ export class PublicationService {
 
     if (lastDoc) {
       q = q.startAfter(lastDoc);
+    }
+
+    const snapshot = await q.get();
+    const publications = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...(doc.data() as Publication),
+    }));
+
+    return {
+      publications,
+      lastDoc:
+        snapshot.docs.length > 0
+          ? snapshot.docs[snapshot.docs.length - 1]
+          : null,
+    };
+  }
+
+  static async getDiscover(
+    options: {
+      lastDoc?: FirebaseFirestoreTypes.QueryDocumentSnapshot;
+      limit?: number;
+      search?: string;
+    } = {},
+  ): Promise<{
+    publications: Publication[];
+    lastDoc: FirebaseFirestoreTypes.QueryDocumentSnapshot | null;
+  }> {
+    const limit = options.limit ?? 12;
+    const token = options.search ? normalizeSearchToken(options.search) : null;
+
+    let q = this.collection
+      .where("status", "==", "ready")
+      .orderBy("orderCount", "desc")
+      .orderBy("createdAt", "desc")
+      .limit(limit);
+
+    if (token) {
+      q = q.where("searchTokens", "array-contains", token);
+    }
+
+    if (options.lastDoc) {
+      q = q.startAfter(options.lastDoc);
     }
 
     const snapshot = await q.get();
