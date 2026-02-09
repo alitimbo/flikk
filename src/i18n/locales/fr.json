@@ -98,6 +98,22 @@
       "save": "Enregistrer mon profil"
     }
   },
+  "merchantPublications": {
+    "title": "Mes Publications",
+    "empty": "Aucune publication pour le moment",
+    "auth": "Connecte-toi pour gérer tes publications.",
+    "notMerchant": "Compte marchand requis pour gérer les publications.",
+    "editTitle": "Modifier la publication",
+    "productName": "Nom du produit",
+    "publicationTitle": "Titre de la publication",
+    "price": "Prix (CFA)",
+    "hashtags": "Hashtags (#tag1 #tag2)",
+    "save": "Enregistrer",
+    "deleteTitle": "Supprimer la publication",
+    "deleteSubtitle": "Cette publication sera retirée du feed.",
+    "delete": "Supprimer",
+    "cancel": "Annuler"
+  },
   "mediaPicker": {
     "title": "Choisir un média",
     "permissionText": "Nous avons besoin de votre permission pour accéder à votre bibliothèque.",

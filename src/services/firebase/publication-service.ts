@@ -8,6 +8,7 @@ import {
   limit,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   startAfter,
   updateDoc,
@@ -162,6 +163,47 @@ export class PublicationService {
     const ref = doc(this.collection, id);
     await updateDoc(ref, {
       viewCount: increment(1),
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  static async adjustLikeCount(id: string, delta: number): Promise<void> {
+    const ref = doc(this.collection, id);
+    await runTransaction(FirebaseService.db, async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) return;
+      const data = snap.data() as Publication;
+      const current = Number(data.likeCount ?? 0);
+      const next = Math.max(0, current + delta);
+      tx.update(ref, {
+        likeCount: next,
+        updatedAt: serverTimestamp(),
+      });
+    });
+  }
+
+  static async updatePublication(
+    id: string,
+    data: Partial<Publication>,
+  ): Promise<void> {
+    const searchTokens = buildSearchTokens([
+      data.productName,
+      data.title,
+      data.hashtags?.join(" "),
+      data.merchantName ?? "",
+    ]);
+    const ref = doc(this.collection, id);
+    await updateDoc(ref, {
+      ...data,
+      searchTokens,
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  static async deletePublication(id: string): Promise<void> {
+    const ref = doc(this.collection, id);
+    await updateDoc(ref, {
+      status: "deleted",
       updatedAt: serverTimestamp(),
     });
   }

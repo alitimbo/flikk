@@ -98,6 +98,22 @@
       "save": "Save Profile"
     }
   },
+  "merchantPublications": {
+    "title": "My Publications",
+    "empty": "No publications yet",
+    "auth": "Sign in to manage your publications.",
+    "notMerchant": "Merchant account required to manage publications.",
+    "editTitle": "Edit publication",
+    "productName": "Product name",
+    "publicationTitle": "Publication title",
+    "price": "Price (CFA)",
+    "hashtags": "Hashtags (#tag1 #tag2)",
+    "save": "Save changes",
+    "deleteTitle": "Delete publication",
+    "deleteSubtitle": "This publication will be removed from the feed.",
+    "delete": "Delete",
+    "cancel": "Cancel"
+  },
   "mediaPicker": {
     "title": "Select Media",
     "permissionText": "We need your permission to access your media library.",

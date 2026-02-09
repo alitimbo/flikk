@@ -7,6 +7,8 @@ import { FeedItem } from "@/components/feed/FeedItem";
 import { useFeed } from "@/hooks/useFeed";
 import { useFocusEffect } from "expo-router";
 import { SkeletonFeedItem } from "@/components/ui/Skeleton";
+import { getAuth, onAuthStateChanged } from "@react-native-firebase/auth";
+import { useFavorites } from "@/hooks/useFavorites";
 
 const TAB_BAR_HEIGHT = 72;
 const AUTO_ADVANCE_IDLE_MS = 3000;
@@ -18,6 +20,9 @@ type VideoFeedProps = {
 export default function VideoFeed({ initialId }: VideoFeedProps) {
   const insets = useSafeAreaInsets();
   const { height: screenHeight } = useWindowDimensions();
+  const [authUid, setAuthUid] = useState<string | undefined>(
+    getAuth().currentUser?.uid,
+  );
   const {
     publications,
     fetchNextPage,
@@ -36,6 +41,13 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
   const initialScrollDoneRef = useRef(false);
 
   useEffect(() => {
+    const unsubscribe = onAuthStateChanged(getAuth(), (user) => {
+      setAuthUid(user?.uid);
+    });
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
     if (initialId) {
       initialTargetRef.current = initialId;
       initialScrollDoneRef.current = false;
@@ -45,6 +57,14 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
   }, [initialId]);
 
   const ITEM_HEIGHT = screenHeight - TAB_BAR_HEIGHT - insets.bottom;
+  const publicationIds = useMemo(
+    () => publications.map((item) => item.id!).filter(Boolean),
+    [publications],
+  );
+  const { favoriteSet, toggleFavorite, isPending } = useFavorites(
+    authUid,
+    publicationIds,
+  );
 
   const onRefresh = useCallback(() => {
     void refetch();
@@ -99,6 +119,9 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
           publication={item}
           isActive={item.id === activeId}
           index={index}
+          isFavorited={favoriteSet.has(item.id ?? "")}
+          isLikePending={isPending(item.id ?? "")}
+          onToggleFavorite={() => toggleFavorite(item.id!)}
           onUserAction={() => {
             lastInteractionRef.current = Date.now();
           }}

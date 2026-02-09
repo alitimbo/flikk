@@ -33,6 +33,9 @@ interface FeedItemProps {
   publication: Publication;
   isActive: boolean;
   index: number;
+  isFavorited?: boolean;
+  isLikePending?: boolean;
+  onToggleFavorite?: () => void;
   onRequestNext?: (index: number) => void;
   onUserAction?: () => void;
 }
@@ -43,6 +46,9 @@ export function FeedItem({
   publication,
   isActive,
   index,
+  isFavorited,
+  isLikePending,
+  onToggleFavorite,
   onRequestNext,
   onUserAction,
 }: FeedItemProps) {
@@ -265,7 +271,8 @@ export function FeedItem({
       openAuthRequired();
       return;
     }
-  }, [openAuthRequired]);
+    onToggleFavorite?.();
+  }, [openAuthRequired, onToggleFavorite]);
 
   const handleCommentPress = useCallback(() => {
     const user = getAuth().currentUser;
@@ -451,16 +458,24 @@ export function FeedItem({
                 <Ionicons name="add" size={14} color="black" />
               </View>
               */}
-              <Text className="text-white font-medium text-[10px] mt-2">
-                {publication.likeCount >= 1000
-                  ? `${(publication.likeCount / 1000).toFixed(0)}k`
-                  : publication.likeCount}
-              </Text>
+              {/* Intentionally no count here (followers will be added later). */}
             </Pressable>
 
-            <Pressable className="items-center mr-2" onPress={handleLikePress}>
-              <Ionicons name="heart-outline" size={24} color="white" />
-              <Text className="text-white font-medium text-[10px] mt-1">0</Text>
+            <Pressable
+              className="items-center mr-2"
+              onPress={handleLikePress}
+              disabled={isLikePending}
+            >
+              <Ionicons
+                name={isFavorited ? "heart" : "heart-outline"}
+                size={24}
+                color={isFavorited ? "#FF4D6D" : "white"}
+              />
+              <Text className="text-white font-medium text-[10px] mt-1">
+                {Math.max(0, publication.likeCount) >= 1000
+                  ? `${(Math.max(0, publication.likeCount) / 1000).toFixed(0)}k`
+                  : Math.max(0, publication.likeCount)}
+              </Text>
             </Pressable>
 
             <Pressable

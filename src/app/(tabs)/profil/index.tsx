@@ -23,12 +23,14 @@ import {
 import { FirebaseService } from "@/services/firebase/firebase-service";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
+import { useRouter } from "expo-router";
 import { MediaPicker } from "@/components/ui/MediaPicker";
 import { useUserProfile } from "@/hooks/useUserProfile";
 
 export default function ProfilIndex() {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const router = useRouter();
   const [authUser, setAuthUser] = useState<FirebaseAuthTypes.User | null>(null);
 
   // Login State
@@ -478,6 +480,7 @@ export default function ProfilIndex() {
               icon="cube-outline"
               title={t("profile.menu.publications")}
               subtitle={t("profile.menu.publicationsSubtitle")}
+              onPress={() => router.push("/(tabs)/profil/publications")}
             />
 
             {/* 3. Favoris */}
