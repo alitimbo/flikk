@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -19,10 +19,15 @@ import { MediaPicker } from "@/components/ui/MediaPicker";
 import { StorageService } from "@/services/storage/storage-service";
 import { PublicationService } from "@/services/firebase/publication-service";
 import auth from "@react-native-firebase/auth";
+import type { FirebaseAuthTypes } from "@react-native-firebase/auth";
+import { FirebaseService } from "@/services/firebase/firebase-service";
+import { useRouter } from "expo-router";
 
 export default function ActionIndex() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const [authUser, setAuthUser] = useState<FirebaseAuthTypes.User | null>(null);
 
   // --- ÉTATS DU FORMULAIRE ---
   const [productName, setProductName] = useState("");
@@ -35,6 +40,13 @@ export default function ActionIndex() {
   // --- ÉTATS DU PICKER ---
   const [pickerMode, setPickerMode] = useState<"photo" | "video" | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = FirebaseService.auth.onAuthStateChanged((user) => {
+      setAuthUser(user);
+    });
+    return unsubscribe;
+  }, []);
 
   const handlePublish = useCallback(async () => {
     const user = auth().currentUser;
@@ -95,6 +107,38 @@ export default function ActionIndex() {
       setIsPublishing(false);
     }
   }, [productName, title, price, hashtags, itemPhoto, commercialVideo]);
+
+  if (!authUser) {
+    return (
+      <View
+        className="flex-1 bg-flikk-dark"
+        style={{ paddingTop: insets.top }}
+      >
+        <View className="flex-1 items-center justify-center px-6">
+          <View className="w-full max-w-[420px] rounded-3xl border border-white/10 bg-flikk-card p-6">
+            <View className="mb-6 h-14 w-14 items-center justify-center rounded-2xl bg-flikk-lime/10">
+              <Ionicons name="lock-closed" size={26} color="#CCFF00" />
+            </View>
+            <Text className="font-display text-2xl text-flikk-text">
+              {t("action.auth.title")}
+            </Text>
+            <Text className="mt-2 font-body text-sm leading-5 text-flikk-text-muted">
+              {t("action.auth.subtitle")}
+            </Text>
+
+            <Pressable
+              className="mt-8 h-14 items-center justify-center rounded-full bg-flikk-lime"
+              onPress={() => router.push("/(tabs)/profil")}
+            >
+              <Text className="font-display text-base text-flikk-dark">
+                {t("action.auth.ctaProfile")}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView

@@ -1,30 +1,91 @@
-import React, { useEffect, useRef, useState, useMemo } from "react";
-import { View, Text, Dimensions, Pressable, StyleSheet } from "react-native";
-import Video, { ResizeMode } from "react-native-video";
-import { Ionicons, Feather } from "@expo/vector-icons";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useMemo,
+  useCallback,
+} from "react";
+import {
+  View,
+  Text,
+  Dimensions,
+  Pressable,
+  StyleSheet,
+  Image,
+  PanResponder,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { Publication } from "@/types";
 import { PublicationService } from "@/services/firebase/publication-service";
 import { LinearGradient } from "expo-linear-gradient";
+import { useVideoPlayer, VideoView } from "expo-video";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface FeedItemProps {
   publication: Publication;
   isActive: boolean;
+  index: number;
+  onRequestNext?: (index: number) => void;
+  onUserAction?: () => void;
 }
 
-const { width, height } = Dimensions.get("window");
+const { height } = Dimensions.get("window");
 
-export function FeedItem({ publication, isActive }: FeedItemProps) {
+export function FeedItem({
+  publication,
+  isActive,
+  index,
+  onRequestNext,
+  onUserAction,
+}: FeedItemProps) {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const [viewTracked, setViewTracked] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const videoRef = useRef<any>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const wasPlayingRef = useRef(false);
+  const barWidthRef = useRef(1);
 
-  // Convert to cache URI for HLS segments persistence
-  const videoSource = useMemo(() => {
-    const url = publication.hlsUrl || publication.videoUrl;
-    return { uri: url };
-  }, [publication.hlsUrl, publication.videoUrl]);
+  const videoUri = useMemo(
+    () => publication.hlsUrl || publication.videoUrl,
+    [publication.hlsUrl, publication.videoUrl],
+  );
+
+  const player = useVideoPlayer(null, (p) => {
+    p.loop = true;
+    p.muted = false;
+    p.timeUpdateEventInterval = 0.5;
+  });
+
+  useEffect(() => {
+    const timeSub = player.addListener("timeUpdate", (payload) => {
+      if (!isScrubbing) {
+        setCurrentTime(payload.currentTime);
+      }
+    });
+    const sourceSub = player.addListener("sourceLoad", (payload) => {
+      setDuration(payload.duration ?? 0);
+      setCurrentTime(0);
+    });
+    const endSub = player.addListener("playToEnd", () => {
+      if (isActive) {
+        onRequestNext?.(index);
+      }
+    });
+
+    return () => {
+      timeSub.remove();
+      sourceSub.remove();
+      endSub.remove();
+    };
+  }, [player, isScrubbing, isActive, index, onRequestNext]);
+
+  useEffect(() => {
+    setViewTracked(false);
+  }, [publication.id]);
 
   // Handle Play/Pause and View Tracking
   useEffect(() => {
@@ -51,28 +112,116 @@ export function FeedItem({ publication, isActive }: FeedItemProps) {
     };
   }, [isActive, publication.id, viewTracked]);
 
+  useEffect(() => {
+    if (!videoUri) return;
+
+    const updateSource = async () => {
+      try {
+        await player.replaceAsync(videoUri);
+      } catch (error) {
+        console.error("Flikk Video Error:", error);
+      }
+    };
+
+    updateSource();
+  }, [videoUri, player]);
+
+  useEffect(() => {
+    if (isActive) {
+      player.play();
+    } else {
+      player.pause();
+    }
+  }, [isActive, player]);
+
+  const togglePlayback = useCallback(() => {
+    onUserAction?.();
+    if (player.playing) {
+      player.pause();
+    } else {
+      player.play();
+    }
+  }, [player, onUserAction]);
+
+  const clamp = (value: number, min: number, max: number) =>
+    Math.max(min, Math.min(max, value));
+
+  const seekToX = useCallback(
+    (x: number) => {
+      if (!duration) return;
+      const width = barWidthRef.current || 1;
+      const ratio = clamp(x / width, 0, 1);
+      const nextTime = ratio * duration;
+      player.currentTime = nextTime;
+      setCurrentTime(nextTime);
+    },
+    [duration, player],
+  );
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: (evt) => {
+          onUserAction?.();
+          setIsScrubbing(true);
+          wasPlayingRef.current = player.playing;
+          player.pause();
+          seekToX(evt.nativeEvent.locationX);
+        },
+        onPanResponderMove: (evt) => {
+          onUserAction?.();
+          seekToX(evt.nativeEvent.locationX);
+        },
+        onPanResponderRelease: (evt) => {
+          onUserAction?.();
+          seekToX(evt.nativeEvent.locationX);
+          setIsScrubbing(false);
+          if (wasPlayingRef.current) {
+            player.play();
+          }
+        },
+        onPanResponderTerminate: () => {
+          onUserAction?.();
+          setIsScrubbing(false);
+          if (wasPlayingRef.current) {
+            player.play();
+          }
+        },
+      }),
+    [player, seekToX, onUserAction],
+  );
+
+  const viewCountValue =
+    publication.viewCount >= 1000
+      ? `${(publication.viewCount / 1000).toFixed(1)}k`
+      : publication.viewCount;
+  const viewCountLabel = t("feed.viewsLabel", { count: viewCountValue });
+  const progress = duration > 0 ? currentTime / duration : 0;
+
   return (
-    <View style={{ width, height, backgroundColor: "black" }}>
+    <View style={{ width: "100%", height: "100%" }} className="bg-flikk-dark">
       {/* VIDEO BACKGROUND */}
-      <Video
-        ref={videoRef}
-        source={videoSource}
+      <VideoView
+        player={player}
         style={StyleSheet.absoluteFill}
-        resizeMode={ResizeMode.COVER}
-        paused={!isActive}
-        repeat={true}
-        muted={false}
-        playInBackground={false}
-        playWhenInactive={false}
-        ignoreSilentSwitch="ignore"
-        // Optimizations for HLS
-        bufferConfig={{
-          minBufferMs: 1500,
-          maxBufferMs: 3000,
-          bufferForPlaybackMs: 1000,
-          bufferForPlaybackAfterRebufferMs: 1500,
-        }}
+        contentFit="cover"
+        nativeControls={false}
       />
+
+      <Pressable onPress={togglePlayback} className="absolute inset-0" />
+
+      {/* VIEW COUNT BADGE (Top Right) */}
+      <View
+        className="absolute right-4 bg-black/40 px-3 py-1.5 rounded-full flex-row items-center gap-1.5"
+        style={{ top: insets.top + 10 }}
+      >
+        <Ionicons name="eye-outline" size={16} color="white" />
+        <Text className="text-white text-[12px] font-semibold">
+          {viewCountLabel}
+        </Text>
+      </View>
 
       {/* OVERLAY GRADIENTS */}
       <LinearGradient
@@ -85,80 +234,129 @@ export function FeedItem({ publication, isActive }: FeedItemProps) {
         style={styles.topGradient}
       />
 
-      {/* RIGHT ACTIONS */}
-      <View className="absolute right-4 bottom-32 items-center gap-6">
-        <Pressable className="mb-4">
-          <View className="h-14 w-14 rounded-full border-2 border-flikk-lime overflow-hidden bg-flikk-card items-center justify-center">
-            <Ionicons name="person" size={24} color="#CCFF00" />
-          </View>
-          <View className="absolute -bottom-2 left-4 bg-flikk-lime rounded-full p-0.5">
-            <Ionicons name="add" size={14} color="black" />
-          </View>
-        </Pressable>
-
-        <Pressable className="items-center">
-          <Ionicons name="heart" size={38} color="white" />
-          <Text className="text-white font-bold text-xs mt-1">
-            {publication.likeCount || 0}
-          </Text>
-        </Pressable>
-
-        <Pressable className="items-center">
-          <Ionicons name="chatbubble-ellipses" size={34} color="white" />
-          <Text className="text-white font-bold text-xs mt-1">
-            {publication.commentCount || 0}
-          </Text>
-        </Pressable>
-
-        <Pressable className="items-center">
-          <Ionicons name="share-social" size={34} color="white" />
-          <Text className="text-white font-bold text-xs mt-1">
-            {t("feed.share")}
-          </Text>
-        </Pressable>
-      </View>
-
       {/* BOTTOM INFO */}
-      <View className="absolute bottom-10 left-4 right-20">
-        <View className="flex-row items-center mb-3">
-          <Text className="text-flikk-lime font-display text-lg">
-            @{publication.productName}
-          </Text>
-          {publication.orderCount > 10 && (
-            <View className="ml-3 bg-red-600 px-2 py-0.5 rounded-full flex-row items-center">
-              <Text className="text-white text-[10px] font-bold uppercase">
-                🔥 {t("feed.hot", { count: publication.orderCount })}
+      <View className="absolute bottom-6 left-4 right-4 flex-row items-end">
+        {/* LEFT BLOCK (80%) */}
+        <View className="w-[80%] pr-1">
+          {/* CUSTOM SCRUB BAR */}
+          <View
+            className="mb-3"
+            onLayout={(event) => {
+              barWidthRef.current = event.nativeEvent.layout.width || 1;
+            }}
+            {...panResponder.panHandlers}
+          >
+            <View className="h-1.5 w-full overflow-hidden rounded-full bg-white/15">
+              <View
+                className="h-full rounded-full bg-flikk-lime"
+                style={{ width: `${progress * 100}%` }}
+              />
+            </View>
+            <View
+              className="absolute -top-1.5 h-4 w-4 rounded-full bg-flikk-lime"
+              style={{ left: `${progress * 100}%`, marginLeft: -8 }}
+            />
+          </View>
+
+          {/* DESCRIPTION & HASHTAGS */}
+          <View className="mb-4 pr-16 text-left">
+            <Text
+              className="text-white font-display text-base mb-1 leading-tight font-normal"
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {publication.title}
+            </Text>
+            {publication.hashtags && publication.hashtags.length > 0 && (
+              <Text
+                className="text-[#a87ff3] font-medium text-sm"
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {publication.hashtags
+                  .map((tag) => `#${tag.replace("#", "")}`)
+                  .join(" ")}
+              </Text>
+            )}
+          </View>
+
+          {/* PRODUCT CARD */}
+          <View className="bg-flikk-card border border-white/10 rounded-2xl p-4 shadow-2xl overflow-hidden">
+            <View className="flex-row items-center gap-4 mb-3">
+              <View className="h-14 w-14 rounded-xl overflow-hidden bg-white/5">
+                <Image
+                  source={{ uri: publication.imageUrl }}
+                  style={StyleSheet.absoluteFill}
+                  resizeMode="cover"
+                />
+              </View>
+              <View className="flex-1">
+                <Text
+                  className="text-white font-display text-base mb-0.5 font-normal"
+                  numberOfLines={1}
+                >
+                  {publication.productName}
+                </Text>
+                <Text className="text-flikk-lime font-medium text-base">
+                  {publication.price.toLocaleString()} FCFA
+                </Text>
+              </View>
+            </View>
+
+            <Pressable className="h-11 bg-flikk-lime rounded-full flex-row items-center justify-center active:scale-[0.98]">
+              <Text className="text-flikk-dark font-display text-[15px] font-medium">
+                {t("feed.buyNow")}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
+        {/* RIGHT BLOCK (20%) */}
+        <View className="w-[20%] items-end">
+          <View className="items-end gap-5">
+            <View className="items-center mb-2">
+              <View className="h-12 w-12 rounded-full border border-flikk-purple p-0.5 bg-black">
+                <View className="flex-1 rounded-full overflow-hidden bg-flikk-card items-center justify-center">
+                  <Ionicons name="person" size={22} color="#CCFF00" />
+                </View>
+              </View>
+              {/*
+              <View className="absolute bottom-3 left-1/2 -translate-x-1/2 -ml-1 bg-flikk-lime rounded-full p-0.5 border-2 border-black">
+                <Ionicons name="add" size={14} color="black" />
+              </View>
+              */}
+              <Text className="text-white font-medium text-[10px] mt-2">
+                {publication.likeCount >= 1000
+                  ? `${(publication.likeCount / 1000).toFixed(0)}k`
+                  : publication.likeCount}
               </Text>
             </View>
-          )}
-        </View>
 
-        <Text className="text-white font-body text-base mb-2" numberOfLines={2}>
-          {publication.title}
-        </Text>
+            <Pressable className="items-center mr-2">
+              <Ionicons name="heart-outline" size={24} color="white" />
+              <Text className="text-white font-medium text-[10px] mt-1">0</Text>
+            </Pressable>
 
-        <View className="flex-row gap-2 flex-wrap mb-4">
-          {publication.hashtags.map((tag, i) => (
-            <Text key={i} className="text-flikk-lime font-bold text-sm">
-              {tag}
-            </Text>
-          ))}
-        </View>
+            <Pressable className="items-center mr-2">
+              <Ionicons
+                name="chatbubble-ellipses-outline"
+                size={22}
+                color="white"
+              />
+              <Text className="text-white font-medium text-[10px] mt-1">
+                {publication.commentCount || 0}
+              </Text>
+            </Pressable>
 
-        {/* PRICE & BUY */}
-        <View className="flex-row items-center gap-4">
-          <View className="bg-white/10 backdrop-blur-md px-4 py-3 rounded-2xl border border-white/20">
-            <Text className="text-flikk-lime font-display text-xl">
-              {publication.price} CFA
-            </Text>
+            {/*
+              <Pressable className="items-center mr-2">
+                <Ionicons name="paper-plane-outline" size={22} color="white" />
+                <Text className="text-white font-medium text-[10px] mt-1">
+                  {t("feed.share")}
+                </Text>
+              </Pressable>
+            */}
           </View>
-
-          <Pressable className="flex-1 h-14 bg-flikk-lime rounded-2xl flex-row items-center justify-center shadow-lg shadow-flikk-lime/30 active:scale-95">
-            <Text className="text-flikk-dark font-display text-lg mr-2 uppercase">
-              {t("feed.buyNow")}
-            </Text>
-            <Feather name="shopping-bag" size={20} color="#121212" />
-          </Pressable>
         </View>
       </View>
     </View>
