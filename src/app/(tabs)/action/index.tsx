@@ -18,7 +18,7 @@ import { Ionicons, Feather } from "@expo/vector-icons";
 import { MediaPicker } from "@/components/ui/MediaPicker";
 import { StorageService } from "@/services/storage/storage-service";
 import { PublicationService } from "@/services/firebase/publication-service";
-import auth from "@react-native-firebase/auth";
+import { getAuth, onAuthStateChanged } from "@react-native-firebase/auth";
 import type { FirebaseAuthTypes } from "@react-native-firebase/auth";
 import { FirebaseService } from "@/services/firebase/firebase-service";
 import { useRouter } from "expo-router";
@@ -43,7 +43,7 @@ export default function ActionIndex() {
   const [isPublishing, setIsPublishing] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = FirebaseService.auth.onAuthStateChanged((user) => {
+    const unsubscribe = onAuthStateChanged(FirebaseService.auth, (user) => {
       setAuthUser(user);
     });
     return unsubscribe;
@@ -54,7 +54,7 @@ export default function ActionIndex() {
   );
 
   const handlePublish = useCallback(async () => {
-    const user = auth().currentUser;
+    const user = getAuth().currentUser;
     if (!user) return;
 
     if (!productName || !title || !price || !itemPhoto || !commercialVideo)
@@ -63,6 +63,14 @@ export default function ActionIndex() {
     setIsPublishing(true);
 
     try {
+      const merchantName =
+        userProfile?.merchantInfo?.businessName ||
+        [userProfile?.firstName, userProfile?.lastName]
+          .filter(Boolean)
+          .join(" ") ||
+        "";
+      const merchantLogoUrl = userProfile?.merchantInfo?.logoUrl;
+
       // 1. Upload Photo
       const photoRes = await StorageService.uploadOne({
         uri: itemPhoto,
@@ -89,6 +97,8 @@ export default function ActionIndex() {
           .map((h) => h.trim()),
         imageUrl: photoRes.downloadUrl,
         videoUrl: videoRes.downloadUrl,
+        merchantName,
+        merchantLogoUrl,
         status: "pending",
       });
 
@@ -111,7 +121,15 @@ export default function ActionIndex() {
     } finally {
       setIsPublishing(false);
     }
-  }, [productName, title, price, hashtags, itemPhoto, commercialVideo]);
+  }, [
+    productName,
+    title,
+    price,
+    hashtags,
+    itemPhoto,
+    commercialVideo,
+    userProfile,
+  ]);
 
   if (!authUser) {
     return (

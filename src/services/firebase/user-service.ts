@@ -1,14 +1,22 @@
 import { FirebaseService } from "@/services/firebase/firebase-service";
-import firestore from "@react-native-firebase/firestore";
 import { UserProfile } from "@/types";
+import {
+  collection,
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp,
+} from "@react-native-firebase/firestore";
+import { getDownloadURL, putFile, ref } from "@react-native-firebase/storage";
 
 export class UserService {
-  private static collection = FirebaseService.db.collection("users");
+  private static collection = collection(FirebaseService.db, "users");
 
   static async getUser(uid: string): Promise<UserProfile | null> {
-    const doc = await this.collection.doc(uid).get();
-    if (!doc.exists) return null;
-    return (doc.data() as UserProfile) || null;
+    const ref = doc(this.collection, uid);
+    const snapshot = await getDoc(ref);
+    if (!snapshot.exists) return null;
+    return (snapshot.data() as UserProfile) || null;
   }
 
   static async createOrUpdateUser(
@@ -17,10 +25,12 @@ export class UserService {
   ): Promise<void> {
     // Remove undefined fields to avoid Firestore errors
     const safeData = JSON.parse(JSON.stringify(data));
-    await this.collection.doc(uid).set(
+    const ref = doc(this.collection, uid);
+    await setDoc(
+      ref,
       {
         ...safeData,
-        updatedAt: firestore.FieldValue.serverTimestamp(),
+        updatedAt: serverTimestamp(),
       },
       { merge: true },
     );
@@ -32,9 +42,9 @@ export class UserService {
       const extension = filename.split(".").pop() || "jpg";
       const path = `uploads/logos/${uid}/${Date.now()}.${extension}`;
 
-      const ref = FirebaseService.storage.ref(path);
-      await ref.putFile(uri);
-      return await ref.getDownloadURL();
+      const storageRef = ref(FirebaseService.storage, path);
+      await putFile(storageRef, uri);
+      return await getDownloadURL(storageRef);
     } catch (error) {
       console.error("Error uploading logo:", error);
       throw error;

@@ -26,7 +26,7 @@ import { PublicationService } from "@/services/firebase/publication-service";
 import { LinearGradient } from "expo-linear-gradient";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import auth from "@react-native-firebase/auth";
+import { getAuth } from "@react-native-firebase/auth";
 import { useRouter } from "expo-router";
 
 interface FeedItemProps {
@@ -74,6 +74,13 @@ export function FeedItem({
     p.loop = true;
     p.muted = false;
     p.timeUpdateEventInterval = 0.5;
+    p.staysActiveInBackground = false;
+    p.keepScreenOnWhilePlaying = false;
+    p.bufferOptions = {
+      preferredForwardBufferDuration: 5,
+      minBufferForPlayback: 1,
+      maxBufferBytes: 5 * 1024 * 1024,
+    };
   });
 
   useEffect(() => {
@@ -242,7 +249,7 @@ export function FeedItem({
   }, []);
 
   const openPaymentSheet = useCallback(() => {
-    const user = auth().currentUser;
+    const user = getAuth().currentUser;
     if (!user) {
       openAuthRequired();
       return;
@@ -253,7 +260,7 @@ export function FeedItem({
   }, [openAuthRequired]);
 
   const handleLikePress = useCallback(() => {
-    const user = auth().currentUser;
+    const user = getAuth().currentUser;
     if (!user) {
       openAuthRequired();
       return;
@@ -261,7 +268,7 @@ export function FeedItem({
   }, [openAuthRequired]);
 
   const handleCommentPress = useCallback(() => {
-    const user = auth().currentUser;
+    const user = getAuth().currentUser;
     if (!user) {
       openAuthRequired();
       return;
@@ -415,10 +422,28 @@ export function FeedItem({
         {/* RIGHT BLOCK (20%) */}
         <View className="w-[20%] items-end">
           <View className="items-end gap-5">
-            <View className="items-center mb-2">
+            <Pressable
+              className="items-center mb-2"
+              onPress={() => {
+                if (publication.userId) {
+                  router.push({
+                    pathname: "/(tabs)/home/merchant/[id]",
+                    params: { id: publication.userId },
+                  });
+                }
+              }}
+            >
               <View className="h-12 w-12 rounded-full border border-flikk-purple p-0.5 bg-black">
                 <View className="flex-1 rounded-full overflow-hidden bg-flikk-card items-center justify-center">
-                  <Ionicons name="person" size={22} color="#CCFF00" />
+                  {publication.merchantLogoUrl ? (
+                    <Image
+                      source={{ uri: publication.merchantLogoUrl }}
+                      className="h-full w-full"
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <Ionicons name="person" size={22} color="#CCFF00" />
+                  )}
                 </View>
               </View>
               {/*
@@ -431,7 +456,7 @@ export function FeedItem({
                   ? `${(publication.likeCount / 1000).toFixed(0)}k`
                   : publication.likeCount}
               </Text>
-            </View>
+            </Pressable>
 
             <Pressable className="items-center mr-2" onPress={handleLikePress}>
               <Ionicons name="heart-outline" size={24} color="white" />

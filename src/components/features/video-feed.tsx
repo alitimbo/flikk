@@ -140,7 +140,9 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
 
     const targetId = initialTargetRef.current;
     if (targetId) {
-      const targetIndex = publications.findIndex((item) => item.id === targetId);
+      const targetIndex = publications.findIndex(
+        (item) => item.id === targetId,
+      );
       if (targetIndex >= 0) {
         requestAnimationFrame(() => {
           listRef.current?.scrollToIndex({
@@ -171,8 +173,40 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
   ]);
 
   useEffect(() => {
-    attemptInitialScroll();
-  }, [attemptInitialScroll, publications.length]);
+    if (isWaitingForInitialTarget && hasNextPage && !isFetchingNextPage) {
+      void fetchNextPage();
+    } else {
+      attemptInitialScroll();
+    }
+  }, [
+    attemptInitialScroll,
+    publications.length,
+    isWaitingForInitialTarget,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  ]);
+
+  useEffect(() => {
+    if (!initialId) return;
+    if (initialScrollDoneRef.current) return;
+    const index = publications.findIndex((item) => item.id === initialId);
+    if (index >= 0) {
+      setTimeout(() => {
+        listRef.current?.scrollToIndex({ index, animated: false });
+        setActiveIdSafe(publications[index].id ?? null);
+        initialScrollDoneRef.current = true;
+      }, 80);
+    }
+  }, [initialId, publications, setActiveIdSafe]);
+
+  const initialTargetIndex = useMemo(() => {
+    if (!initialId) return -1;
+    return publications.findIndex((item) => item.id === initialId);
+  }, [initialId, publications]);
+
+  const isWaitingForInitialTarget =
+    !!initialId && !initialScrollDoneRef.current && initialTargetIndex < 0;
 
   useFocusEffect(
     useCallback(() => {
@@ -194,7 +228,7 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
 
   return (
     <View className="flex-1 bg-flikk-dark">
-      {isLoading && publications.length === 0 ? (
+      {isWaitingForInitialTarget || (isLoading && publications.length === 0) ? (
         <SkeletonFeedItem height={ITEM_HEIGHT} />
       ) : (
         <FlashList
@@ -202,6 +236,9 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
           data={publications}
           renderItem={renderItem}
           keyExtractor={(item) => item.id!}
+          onContentSizeChange={() => {
+            attemptInitialScroll();
+          }}
           onScrollToIndexFailed={({ index }) => {
             setTimeout(() => {
               listRef.current?.scrollToIndex({
@@ -224,10 +261,12 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
           onRefresh={onRefresh}
           refreshing={isRefetching && !isFetchingNextPage}
           viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs}
-          removeClippedSubviews
-          maxToRenderPerBatch={2}
-          windowSize={5}
-          estimatedItemSize={ITEM_HEIGHT}
+        removeClippedSubviews
+        maxToRenderPerBatch={1}
+        windowSize={3}
+        initialNumToRender={1}
+        updateCellsBatchingPeriod={50}
+        estimatedItemSize={ITEM_HEIGHT}
           disableRecycling={false}
           ListFooterComponent={() =>
             isFetchingNextPage ? (

@@ -26,6 +26,16 @@
     "searchPlaceholder": "Search products, hashtags, merchants...",
     "empty": "No publications found"
   },
+  "merchant": {
+    "title": "Merchant",
+    "notFound": "Merchant not found",
+    "phone": "Phone",
+    "businessPhone": "Business phone",
+    "follow": "Follow",
+    "following": "Following",
+    "self": "My shop",
+    "empty": "No publications yet"
+  },
   "profile": {
     "title": "My Profile",
     "memberType": "Flikk Member",

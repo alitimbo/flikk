@@ -15,6 +15,11 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { FirebaseAuthTypes } from "@react-native-firebase/auth";
+import {
+  onAuthStateChanged,
+  signInWithPhoneNumber,
+  signOut,
+} from "@react-native-firebase/auth";
 import { FirebaseService } from "@/services/firebase/firebase-service";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
@@ -69,7 +74,7 @@ export default function ProfilIndex() {
   );
 
   useEffect(() => {
-    const unsubscribe = FirebaseService.auth.onAuthStateChanged((user) => {
+    const unsubscribe = onAuthStateChanged(FirebaseService.auth, (user) => {
       setAuthUser(user);
     });
     return unsubscribe;
@@ -119,8 +124,10 @@ export default function ProfilIndex() {
     try {
       setIsLoading(true);
       const fullPhone = `${COUNTRIES[countryIndex].dial}${phoneNumber.trim()}`;
-      const result =
-        await FirebaseService.auth.signInWithPhoneNumber(fullPhone);
+      const result = await signInWithPhoneNumber(
+        FirebaseService.auth,
+        fullPhone,
+      );
       setConfirmation(result);
       setResendSeconds(30);
     } catch {
@@ -145,7 +152,7 @@ export default function ProfilIndex() {
   }, [canConfirm, confirmation, smsCode, t]);
 
   const handleSignOut = useCallback(async () => {
-    await FirebaseService.auth.signOut();
+    await signOut(FirebaseService.auth);
   }, []);
 
   const handleSaveProfile = async () => {

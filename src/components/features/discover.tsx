@@ -40,7 +40,7 @@ export function Discover() {
           onPress={() =>
             router.push({
               pathname: "/(tabs)/home",
-              params: { focusId: item.id },
+              params: { focusId: item.id, ts: Date.now().toString() },
             })
           }
         >
@@ -105,7 +105,7 @@ export function Discover() {
             placeholder={t("discover.searchPlaceholder")}
             placeholderTextColor="#666666"
             value={search}
-            onChangeText={setSearch}
+            onChangeText={(text) => setSearch(text.toLowerCase())}
             returnKeyType="search"
             selectionColor="#CCFF00"
           />

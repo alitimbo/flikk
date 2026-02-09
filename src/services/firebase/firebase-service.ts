@@ -1,17 +1,17 @@
-import auth from "@react-native-firebase/auth";
-import firestore from "@react-native-firebase/firestore";
-import storage from "@react-native-firebase/storage";
+import { getAuth } from "@react-native-firebase/auth";
+import { getFirestore } from "@react-native-firebase/firestore";
+import { getStorage } from "@react-native-firebase/storage";
 
 import { initAppCheck } from "./app-check";
 
 export class FirebaseService {
   private static initialized = false;
 
-  static auth = auth();
+  static auth = getAuth();
 
-  static db = firestore();
+  static db = getFirestore();
 
-  static storage = storage();
+  static storage = getStorage();
 
   static async init() {
     if (this.initialized) return;

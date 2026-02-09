@@ -1,4 +1,12 @@
 import { FirebaseService } from "@/services/firebase/firebase-service";
+import {
+  ref,
+  putFile,
+  getDownloadURL,
+  updateMetadata,
+  SettableMetadata,
+  Reference,
+} from "@react-native-firebase/storage";
 
 export type UploadKind = "video" | "image";
 
@@ -81,12 +89,12 @@ export class StorageService {
     // Only throw if the URI doesn't match any allowed extension for this kind
     ensureUriHasAllowedExtension(item.uri, item.kind);
 
-    const ref = FirebaseService.storage.ref(path);
-    await ref.putFile(item.uri, {
+    const storageRef = ref(FirebaseService.storage, path);
+    await putFile(storageRef, item.uri, {
       contentType,
       customMetadata: sanitizeMetadata(item.metadata),
-    });
-    const downloadUrl = await ref.getDownloadURL();
+    } as SettableMetadata);
+    const downloadUrl = await getDownloadURL(storageRef);
 
     return { path, downloadUrl };
   }
@@ -107,8 +115,8 @@ export class StorageService {
       item.kind === "video" ? "uploads/raw/videos" : "uploads/raw/images";
     const path = buildPath(item.pathPrefix ?? folder, fileName);
 
-    const ref = FirebaseService.storage.ref(path);
-    await ref.putFile(item.uri, {
+    const storageRef = ref(FirebaseService.storage, path);
+    await putFile(storageRef, item.uri, {
       contentType,
       customMetadata: sanitizeMetadata({
         ...item.metadata,
@@ -117,21 +125,21 @@ export class StorageService {
           item.kind === "video" ? "hls" : getRequiredExtension(item.kind),
         "flikk:originalExtension": extension ?? "unknown",
       }),
-    });
-    const downloadUrl = await ref.getDownloadURL();
+    } as SettableMetadata);
+    const downloadUrl = await getDownloadURL(storageRef);
 
     return { path, downloadUrl };
   }
 
-  static getRef(path: string) {
-    return FirebaseService.storage.ref(path);
+  static getRef(path: string): Reference {
+    return ref(FirebaseService.storage, path);
   }
 
   static async updateMetadata(path: string, metadata: Record<string, string>) {
-    const ref = this.getRef(path);
-    return await ref.updateMetadata({
+    const storageRef = this.getRef(path);
+    return await updateMetadata(storageRef, {
       customMetadata: sanitizeMetadata(metadata),
-    });
+    } as SettableMetadata);
   }
 }
 

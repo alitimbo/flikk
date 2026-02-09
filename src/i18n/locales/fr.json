@@ -26,6 +26,16 @@
     "searchPlaceholder": "Rechercher produits, hashtags, boutiques...",
     "empty": "Aucune publication trouvée"
   },
+  "merchant": {
+    "title": "Boutique",
+    "notFound": "Boutique introuvable",
+    "phone": "Téléphone",
+    "businessPhone": "Téléphone du commerce",
+    "follow": "Suivre",
+    "following": "Abonné",
+    "self": "Ma boutique",
+    "empty": "Aucune publication pour le moment"
+  },
   "profile": {
     "title": "Mon Profil",
     "memberType": "Membre Flikk",

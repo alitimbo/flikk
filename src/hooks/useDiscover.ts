@@ -3,7 +3,11 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { PublicationService } from "@/services/firebase/publication-service";
 import { Publication } from "@/types";
 import { FirebaseFirestoreTypes } from "@react-native-firebase/firestore";
-import { buildSearchTokens, matchesSearchTokens } from "@/utils/search";
+import {
+  buildSearchTokens,
+  getSearchTokenVariants,
+  matchesSearchTokens,
+} from "@/utils/search";
 
 type DiscoverPage = {
   publications: Publication[];
@@ -16,6 +20,10 @@ export function useDiscover(searchText: string) {
     [searchText],
   );
   const primaryToken = tokens[0] ?? "";
+  const tokenVariants = useMemo(
+    () => getSearchTokenVariants(searchText),
+    [searchText],
+  );
 
   const query = useInfiniteQuery({
     queryKey: ["discover", primaryToken],
@@ -25,6 +33,7 @@ export function useDiscover(searchText: string) {
         lastDoc: pageParam ?? undefined,
         limit: 12,
         search: primaryToken,
+        searchVariants: tokenVariants,
       }),
     getNextPageParam: (lastPage: DiscoverPage) =>
       lastPage.lastDoc ?? undefined,

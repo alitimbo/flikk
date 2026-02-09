@@ -35,6 +35,7 @@ export interface Publication {
   hlsUrl?: string; // Transcoded master.m3u8 URL
   searchTokens?: string[];
   merchantName?: string;
+  merchantLogoUrl?: string;
   status: "pending" | "processing" | "ready" | "error" | "deleted";
 
   // Stats
