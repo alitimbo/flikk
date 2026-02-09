@@ -10,6 +10,7 @@
 const { setGlobalOptions } = require("firebase-functions");
 const admin = require("firebase-admin");
 const publicationController = require("./controllers/publicationController");
+const viewController = require("./controllers/viewController");
 
 // Initialize Admin once at entry point
 if (admin.apps.length === 0) {
@@ -26,6 +27,7 @@ setGlobalOptions({
  * Storage Triggers
  */
 exports.onRawVideoUpload = publicationController.onRawVideoUpload;
+exports.incrementViewOnce = viewController.incrementViewOnce;
 
 // Example of grouping for future scalability
 // exports.publications = {

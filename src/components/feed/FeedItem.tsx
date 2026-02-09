@@ -22,13 +22,14 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { Publication } from "@/types";
-import { PublicationService } from "@/services/firebase/publication-service";
 import { LinearGradient } from "expo-linear-gradient";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getAuth } from "@react-native-firebase/auth";
 import { useRouter } from "expo-router";
 import { CommentsSheet } from "@/components/features/comments-sheet";
+import { DeviceService } from "@/services/device/device-service";
+import { ViewService } from "@/services/firebase/view-service";
 
 interface FeedItemProps {
   publication: Publication;
@@ -77,6 +78,7 @@ export function FeedItem({
   const [phoneNumber, setPhoneNumber] = useState("");
   const [sheetTranslateY, setSheetTranslateY] = useState(0);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const deviceId = useMemo(() => DeviceService.getDeviceId(), []);
 
   const videoUri = useMemo(
     () => publication.hlsUrl || publication.videoUrl,
@@ -146,7 +148,7 @@ export function FeedItem({
       // Start 3s timer for view increment
       if (!viewTracked) {
         timerRef.current = setTimeout(() => {
-          PublicationService.incrementViewCount(publication.id!).catch(
+          ViewService.incrementViewOnce(publication.id!, deviceId).catch(
             console.error,
           );
           setViewTracked(true);
