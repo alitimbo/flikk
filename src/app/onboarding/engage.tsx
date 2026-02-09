@@ -4,8 +4,7 @@ import { useTranslation } from "react-i18next";
 import { OnboardingShell } from "@/components/features/onboarding-shell";
 import { OnboardingSwipe } from "@/components/features/onboarding-swipe";
 
-const IMAGE_URL =
-  "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1200&q=80";
+const IMAGE = require("@/assets/onboarding/three.png");
 
 export default function EngageScreen() {
   const router = useRouter();
@@ -19,7 +18,7 @@ export default function EngageScreen() {
       >
         <View className="flex-1 overflow-hidden rounded-3xl">
           <ImageBackground
-            source={{ uri: IMAGE_URL }}
+            source={IMAGE}
             resizeMode="cover"
             className="absolute inset-0"
           />

@@ -77,6 +77,10 @@
       "delivery": "Tracked express delivery",
       "security": "100% secure payment"
     },
+    "links": {
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Use"
+    },
     "edit": {
       "title": "Edit Profile",
       "subtitle": "Keep your information up to date."

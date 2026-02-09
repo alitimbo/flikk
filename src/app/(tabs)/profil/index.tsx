@@ -27,10 +27,12 @@ import { useRouter } from "expo-router";
 import { MediaPicker } from "@/components/ui/MediaPicker";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import type { WithdrawalMethod } from "@/types";
+import * as WebBrowser from "expo-web-browser";
+import { setLanguage } from "@/i18n";
 
 export default function ProfilIndex() {
   const insets = useSafeAreaInsets();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const [authUser, setAuthUser] = useState<FirebaseAuthTypes.User | null>(null);
 
@@ -46,6 +48,8 @@ export default function ProfilIndex() {
   const [showCountryList, setShowCountryList] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const resendTimer = useRef<NodeJS.Timeout | null>(null);
+  const supportUrl = "https://wa.me/22788032384";
+  const policyUrl = "https://belemdev.tech";
 
   // Profile Data Hook
   const {
@@ -127,6 +131,10 @@ export default function ProfilIndex() {
     [phoneNumber, resendSeconds],
   );
   const canConfirm = useMemo(() => smsCode.trim().length >= 4, [smsCode]);
+  const currentLanguage = useMemo(
+    () => (i18n.language?.startsWith("en") ? "en" : "fr"),
+    [i18n.language],
+  );
   const canSaveMerchant =
     !isMerchant ||
     (businessName.trim().length > 0 &&
@@ -171,6 +179,19 @@ export default function ProfilIndex() {
   const handleSignOut = useCallback(async () => {
     await signOut(FirebaseService.auth);
   }, []);
+
+  const handleToggleLanguage = useCallback(async () => {
+    const nextLanguage = currentLanguage === "fr" ? "en" : "fr";
+    await setLanguage(nextLanguage);
+  }, [currentLanguage]);
+
+  const openSupport = useCallback(async () => {
+    await WebBrowser.openBrowserAsync(supportUrl);
+  }, [supportUrl]);
+
+  const openPolicy = useCallback(async () => {
+    await WebBrowser.openBrowserAsync(policyUrl);
+  }, [policyUrl]);
 
   const handleSaveProfile = async () => {
     if (!authUser || !firstName || !lastName) return;
@@ -494,8 +515,14 @@ export default function ProfilIndex() {
           <Text className="font-display text-3xl text-flikk-text">
             {t("profile.title")}
           </Text>
-          <Pressable className="h-10 w-10 items-center justify-center rounded-full bg-white/10">
-            <Ionicons name="settings-outline" size={24} color="#FFFFFF" />
+          <Pressable
+            onPress={handleToggleLanguage}
+            className="flex-row items-center gap-2 rounded-full bg-white/10 px-3 py-2"
+          >
+            <Ionicons name="globe-outline" size={18} color="#FFFFFF" />
+            <Text className="font-display text-xs text-flikk-text">
+              {currentLanguage.toUpperCase()}
+            </Text>
           </Pressable>
         </View>
 
@@ -614,6 +641,7 @@ export default function ProfilIndex() {
               icon="help-circle-outline"
               title={t("profile.menu.support")}
               subtitle={t("profile.menu.supportSubtitle")}
+              onPress={openSupport}
             />
           </View>
 
@@ -829,6 +857,19 @@ export default function ProfilIndex() {
             icon="lock-closed-outline"
             text={t("profile.benefits.security")}
           />
+        </View>
+
+        <View className="items-center gap-3 pb-4">
+          <Pressable onPress={openPolicy}>
+            <Text className="font-body text-xs text-flikk-text-muted underline">
+              {t("profile.links.privacy")}
+            </Text>
+          </Pressable>
+          <Pressable onPress={openPolicy}>
+            <Text className="font-body text-xs text-flikk-text-muted underline">
+              {t("profile.links.terms")}
+            </Text>
+          </Pressable>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

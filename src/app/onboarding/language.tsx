@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Pressable, View, Text, ImageBackground } from "react-native";
 import { useRouter } from "expo-router";
 import { Image } from "expo-image";
@@ -6,14 +6,15 @@ import { useTranslation } from "react-i18next";
 import { OnboardingShell } from "@/components/features/onboarding-shell";
 import { OnboardingSwipe } from "@/components/features/onboarding-swipe";
 import { setLanguage } from "@/i18n";
+import * as WebBrowser from "expo-web-browser";
 
 const LANGS = [
   { code: "fr", label: "Francais" },
   { code: "en", label: "English" },
 ] as const;
 
-const BG_IMAGE =
-  "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=80";
+const BG_IMAGE = require("@/assets/onboarding/one.png");
+const POLICY_URL = "https://belemdev.tech";
 
 export default function LanguageScreen() {
   const router = useRouter();
@@ -27,6 +28,10 @@ export default function LanguageScreen() {
     router.push("/onboarding/value");
   };
 
+  const openPolicy = useCallback(async () => {
+    await WebBrowser.openBrowserAsync(POLICY_URL);
+  }, []);
+
   return (
     <OnboardingShell backgroundClassName="bg-[#2B2B2B]">
       <OnboardingSwipe
@@ -36,7 +41,7 @@ export default function LanguageScreen() {
       >
         <View className="flex-1 overflow-hidden rounded-3xl">
         <ImageBackground
-          source={{ uri: BG_IMAGE }}
+          source={BG_IMAGE}
           resizeMode="cover"
           className="absolute inset-0"
         />
@@ -88,6 +93,20 @@ export default function LanguageScreen() {
                 {t("onboarding.continue")}
               </Text>
             </Pressable>
+
+            <View className="mt-2 flex-row items-center justify-center gap-4">
+              <Pressable onPress={openPolicy}>
+                <Text className="font-body text-xs text-flikk-text-muted underline">
+                  {t("profile.links.privacy")}
+                </Text>
+              </Pressable>
+              <Text className="text-xs text-flikk-text-muted">•</Text>
+              <Pressable onPress={openPolicy}>
+                <Text className="font-body text-xs text-flikk-text-muted underline">
+                  {t("profile.links.terms")}
+                </Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </View>

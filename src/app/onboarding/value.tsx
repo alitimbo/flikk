@@ -4,8 +4,7 @@ import { useTranslation } from "react-i18next";
 import { OnboardingShell } from "@/components/features/onboarding-shell";
 import { OnboardingSwipe } from "@/components/features/onboarding-swipe";
 
-const IMAGE_URL =
-  "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1400&q=80";
+const IMAGE = require("@/assets/onboarding/two.png");
 
 export default function ValueScreen() {
   const router = useRouter();
@@ -18,7 +17,7 @@ export default function ValueScreen() {
       >
         <View className="flex-1 overflow-hidden rounded-3xl bg-black/40">
         <ImageBackground
-          source={{ uri: IMAGE_URL }}
+          source={IMAGE}
           resizeMode="cover"
           className="absolute inset-0"
         />

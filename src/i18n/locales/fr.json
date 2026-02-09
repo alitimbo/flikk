@@ -77,6 +77,10 @@
       "delivery": "Livraison express suivie",
       "security": "Paiement 100% sécurisé"
     },
+    "links": {
+      "privacy": "Politique de confidentialité",
+      "terms": "Conditions d'utilisation"
+    },
     "edit": {
       "title": "Modifier le Profil",
       "subtitle": "Gardez vos informations à jour."
