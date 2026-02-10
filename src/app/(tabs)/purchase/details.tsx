@@ -1,0 +1,112 @@
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { View, Text, Pressable, Image } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
+import { useOrderById } from "@/hooks/useOrderById";
+
+export default function PurchaseDetailsScreen() {
+  const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { data: order, isLoading } = useOrderById(id);
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-flikk-dark">
+        <Text className="text-sm text-flikk-text-muted">
+          {t("orders.loading")}
+        </Text>
+      </View>
+    );
+  }
+
+  if (!order) {
+    return (
+      <View className="flex-1 items-center justify-center bg-flikk-dark px-6">
+        <Text className="text-sm text-flikk-text-muted">
+          {t("orders.notFound")}
+        </Text>
+      </View>
+    );
+  }
+
+  const status =
+    order.paymentStatus || order.status || "pending";
+  const statusLabel =
+    status === "paid"
+      ? t("orders.statusPaid")
+      : status === "failed"
+        ? t("orders.statusFailed")
+        : t("orders.statusPending");
+
+  return (
+    <View
+      className="flex-1 bg-flikk-dark"
+      style={{ paddingTop: insets.top }}
+    >
+      <View className="flex-row items-center justify-between px-6 pb-4 pt-4">
+        <Pressable
+          onPress={() => router.back()}
+          className="h-10 w-10 items-center justify-center rounded-full bg-white/10"
+        >
+          <Ionicons name="chevron-back" size={20} color="#FFFFFF" />
+        </Pressable>
+        <Text className="font-display text-lg text-flikk-text">
+          {t("orders.detailsTitle")}
+        </Text>
+        <View className="w-10" />
+      </View>
+
+      <View className="mx-6 rounded-3xl border border-white/10 bg-flikk-card p-5">
+        <View className="flex-row items-center gap-4">
+          <View className="h-16 w-16 overflow-hidden rounded-xl bg-white/5">
+            {order.productImageUrl ? (
+              <Image
+                source={{ uri: order.productImageUrl }}
+                className="h-full w-full"
+                resizeMode="cover"
+              />
+            ) : null}
+          </View>
+          <View className="flex-1">
+            <Text className="font-display text-base text-flikk-text" numberOfLines={1}>
+              {order.productName || t("orders.unknown")}
+            </Text>
+            <Text className="mt-1 text-sm text-flikk-lime">
+              {(order.amount ?? 0).toLocaleString()} {order.currency ?? "XOF"}
+            </Text>
+            <Text className="mt-1 text-xs text-flikk-text-muted" numberOfLines={1}>
+              {order.merchantName || ""}
+            </Text>
+          </View>
+        </View>
+
+        <View className="mt-4 flex-row items-center justify-between rounded-2xl bg-white/5 px-4 py-3">
+          <Text className="text-sm text-flikk-text-muted">
+            {t("orders.statusLabel")}
+          </Text>
+          <Text className="text-sm text-flikk-lime">{statusLabel}</Text>
+        </View>
+      </View>
+
+      <View className="mx-6 mt-6 gap-3">
+        <DetailRow label={t("orders.detailReference")} value={order.paymentReference} />
+        <DetailRow label={t("orders.detailExternal")} value={order.externalReference ?? "-"} />
+        <DetailRow label={t("orders.detailCustomer")} value={order.customerName ?? "-"} />
+        <DetailRow label={t("orders.detailPhone")} value={order.msisdn ?? "-"} />
+        <DetailRow label={t("orders.detailMerchant")} value={order.merchantName ?? "-"} />
+      </View>
+    </View>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View className="flex-row items-center justify-between rounded-2xl border border-white/10 bg-flikk-card px-4 py-3">
+      <Text className="text-xs text-flikk-text-muted">{label}</Text>
+      <Text className="text-xs text-flikk-text">{value}</Text>
+    </View>
+  );
+}

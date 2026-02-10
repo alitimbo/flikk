@@ -187,7 +187,11 @@
     "zamani": "Zamani Cash",
     "phoneLabel": "Numéro de téléphone",
     "phonePlaceholder": "ex: 90 12 34 56",
+    "phoneInvalid": "NumÃ©ro invalide. Entrez uniquement les chiffres.",
     "confirm": "Confirmer",
+    "statusSuccess": "Paiement reussi",
+    "statusPending": "Paiement en attente...",
+    "statusFailed": "Paiement echoue",
     "auth": {
       "title": "Connexion requise",
       "subtitle": "Vous devez être connecté pour acheter. Connectez-vous ou créez un compte.",
@@ -214,5 +218,24 @@
       "subtitle": "Connecte-toi pour commenter ou aimer un commentaire.",
       "cta": "Aller au Profil"
     }
+  },
+  "orders": {
+    "title": "Mes achats",
+    "subtitle": "Suivez le statut de vos paiements.",
+    "empty": "Aucune commande pour le moment",
+    "auth": "Connecte-toi pour voir tes achats.",
+    "unknown": "Produit",
+    "statusPaid": "Payee",
+    "statusPending": "En attente",
+    "statusFailed": "Echouee",
+    "loading": "Chargement...",
+    "notFound": "Commande introuvable",
+    "detailsTitle": "Details de la commande",
+    "statusLabel": "Statut",
+    "detailReference": "Reference",
+    "detailExternal": "Reference externe",
+    "detailCustomer": "Client",
+    "detailPhone": "Telephone",
+    "detailMerchant": "Vendeur"
   }
 }

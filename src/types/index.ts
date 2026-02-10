@@ -75,3 +75,52 @@ export interface Comment {
   createdAt?: any;
   updatedAt?: any;
 }
+
+export type PaymentStatus =
+  | "pending"
+  | "succeeded"
+  | "failed"
+  | "declined"
+  | "insufficient_fund";
+
+export interface PaymentRequest {
+  publicationId: string;
+  msisdn: string;
+  customerName?: string;
+  country?: string;
+  currency?: string;
+}
+
+export interface PaymentResponse {
+  reference: string;
+  status: PaymentStatus;
+}
+
+export interface PaymentStatusResponse {
+  external_reference?: string;
+  reference: string;
+  status: PaymentStatus;
+  msisdn?: string;
+}
+
+export interface Order {
+  orderId: string;
+  paymentReference: string;
+  paymentStatus: "paid" | "failed" | "pending";
+  externalReference?: string | null;
+  publicationId?: string | null;
+  productName?: string | null;
+  productImageUrl?: string | null;
+  amount?: number | null;
+  currency?: string | null;
+  country?: string | null;
+  msisdn?: string | null;
+  customerName?: string | null;
+  customerId?: string | null;
+  merchantId?: string | null;
+  merchantName?: string | null;
+  merchantLogoUrl?: string | null;
+  status?: "paid" | "failed" | "pending";
+  createdAt?: any;
+  updatedAt?: any;
+}

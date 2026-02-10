@@ -146,6 +146,7 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
             }
           }}
           onCommentsOpenChange={(isOpen) => setIsScrollLocked(isOpen)}
+          onPaymentOpenChange={(isOpen) => setIsScrollLocked(isOpen)}
         />
       </View>
     ),

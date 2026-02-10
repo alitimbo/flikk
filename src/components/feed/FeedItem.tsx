@@ -18,6 +18,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
@@ -30,6 +31,10 @@ import { useRouter } from "expo-router";
 import { CommentsSheet } from "@/components/features/comments-sheet";
 import { DeviceService } from "@/services/device/device-service";
 import { ViewService } from "@/services/firebase/view-service";
+import { PaymentService } from "@/services/firebase/payment-service";
+import { usePaymentStatus } from "@/hooks/usePaymentStatus";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import type { PaymentStatus } from "@/types";
 
 interface FeedItemProps {
   publication: Publication;
@@ -41,6 +46,7 @@ interface FeedItemProps {
   onRequestNext?: (index: number) => void;
   onUserAction?: () => void;
   onCommentsOpenChange?: (isOpen: boolean) => void;
+  onPaymentOpenChange?: (isOpen: boolean) => void;
 }
 
 const { height } = Dimensions.get("window");
@@ -55,6 +61,7 @@ export function FeedItem({
   onRequestNext,
   onUserAction,
   onCommentsOpenChange,
+  onPaymentOpenChange,
 }: FeedItemProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -75,9 +82,13 @@ export function FeedItem({
   const [paymentMethod, setPaymentMethod] = useState<
     "airtel" | "moov" | "zamani"
   >("airtel");
+  const [paymentReference, setPaymentReference] = useState<string | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
+  const [isPaymentSubmitting, setIsPaymentSubmitting] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [sheetTranslateY, setSheetTranslateY] = useState(0);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const deviceId = useMemo(() => DeviceService.getDeviceId(), []);
 
   const videoUri = useMemo(
@@ -182,12 +193,12 @@ export function FeedItem({
   }, [videoUri, player]);
 
   useEffect(() => {
-    if (isActive && !isCommentsOpen) {
+    if (isActive && !isCommentsOpen && !isPaymentOpen) {
       player.play();
     } else {
       player.pause();
     }
-  }, [isActive, isCommentsOpen, player]);
+  }, [isActive, isCommentsOpen, isPaymentOpen, player]);
 
   const togglePlayback = useCallback(() => {
     onUserAction?.();
@@ -274,8 +285,12 @@ export function FeedItem({
       return;
     }
     setPhoneNumber(user.phoneNumber ?? "");
+    setPhoneError(null);
     setPaymentMethod("airtel");
+    setPaymentReference(null);
+    setPaymentStatus(null);
     setIsPaymentOpen(true);
+    onPaymentOpenChange?.(true);
   }, [openAuthRequired]);
 
   const handleLikePress = useCallback(() => {
@@ -297,7 +312,76 @@ export function FeedItem({
     setIsPaymentOpen(false);
     setSheetTranslateY(0);
     setKeyboardHeight(0);
+    setPaymentReference(null);
+    setPaymentStatus(null);
+    setIsPaymentSubmitting(false);
+    setPhoneError(null);
+    onPaymentOpenChange?.(false);
   }, []);
+
+  const authUser = getAuth().currentUser;
+  const { data: userProfile } = useUserProfile(authUser?.uid);
+  const statusQuery = usePaymentStatus(
+    paymentReference,
+    isPaymentOpen && paymentStatus === "pending",
+  );
+
+  useEffect(() => {
+    if (!statusQuery.data?.status) return;
+    setPaymentStatus(statusQuery.data.status);
+  }, [statusQuery.data?.status]);
+
+  const handleConfirmPayment = useCallback(async () => {
+    if (!phoneNumber.trim()) return;
+    const user = getAuth().currentUser;
+    if (!user) {
+      openAuthRequired();
+      return;
+    }
+
+    const sanitizeMsisdn = (value: string) =>
+      value.replace(/\D/g, "");
+    const normalizedMsisdn = sanitizeMsisdn(phoneNumber);
+    if (normalizedMsisdn.length < 8) {
+      setPhoneError(t("payment.phoneInvalid"));
+      return;
+    }
+    setPhoneError(null);
+
+    const customerName =
+      userProfile?.merchantInfo?.businessName ||
+      [userProfile?.firstName, userProfile?.lastName]
+        .filter(Boolean)
+        .join(" ") ||
+      user.phoneNumber ||
+      "Client Flikk";
+
+    try {
+      setIsPaymentSubmitting(true);
+      const token = await user.getIdToken(true);
+      console.log("Payment debug uid:", user.uid);
+      console.log("Payment debug token:", token?.slice(0, 12));
+      const result = await PaymentService.requestPayment({
+        publicationId: publication.id ?? "",
+        msisdn: normalizedMsisdn,
+        customerName,
+        country: "NE",
+        currency: "XOF",
+      });
+      setPaymentReference(result.reference);
+      setPaymentStatus(result.status);
+    } catch (error) {
+      const code = (error as { code?: string })?.code ?? "";
+      if (code.includes("unauthenticated")) {
+        openAuthRequired();
+      } else {
+        setPaymentStatus("failed");
+      }
+      console.error("Payment error", error);
+    } finally {
+      setIsPaymentSubmitting(false);
+    }
+  }, [phoneNumber, publication.id, userProfile, openAuthRequired]);
 
   const sheetPanResponder = useMemo(
     () =>
@@ -588,23 +672,49 @@ export function FeedItem({
                 placeholder={t("payment.phonePlaceholder")}
                 placeholderTextColor="#666666"
                 value={phoneNumber}
-                onChangeText={setPhoneNumber}
+                onChangeText={(value) => {
+                  setPhoneNumber(value);
+                  if (phoneError) setPhoneError(null);
+                }}
                 keyboardType="phone-pad"
                 selectionColor="#CCFF00"
               />
+              {phoneError && (
+                <Text className="mt-2 text-xs text-[#FF4D6D]">
+                  {phoneError}
+                </Text>
+              )}
             </View>
 
             <Pressable
               className={`mt-6 h-12 items-center justify-center rounded-full bg-flikk-lime ${
-                !phoneNumber.trim() ? "opacity-50" : "active:scale-[0.98]"
+                !phoneNumber.trim() || isPaymentSubmitting
+                  ? "opacity-50"
+                  : "active:scale-[0.98]"
               }`}
-              disabled={!phoneNumber.trim()}
-              onPress={closePaymentSheet}
+              disabled={!phoneNumber.trim() || isPaymentSubmitting}
+              onPress={handleConfirmPayment}
             >
-              <Text className="font-display text-base text-flikk-dark">
-                {t("payment.confirm")}
-              </Text>
+              {isPaymentSubmitting ? (
+                <ActivityIndicator color="#121212" />
+              ) : (
+                <Text className="font-display text-base text-flikk-dark">
+                  {t("payment.confirm")}
+                </Text>
+              )}
             </Pressable>
+
+            {paymentStatus && (
+              <View className="mt-4 items-center">
+                <Text className="text-sm text-flikk-text-muted">
+                  {paymentStatus === "succeeded"
+                    ? t("payment.statusSuccess")
+                    : paymentStatus === "pending"
+                      ? t("payment.statusPending")
+                      : t("payment.statusFailed")}
+                </Text>
+              </View>
+            )}
           </View>
         </KeyboardAvoidingView>
       </Modal>
