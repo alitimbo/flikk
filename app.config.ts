@@ -29,9 +29,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     predictiveBackGestureEnabled: false,
     googleServicesFile: "./google-services.json",
     permissions: [
-      "READ_EXTERNAL_STORAGE",
-      "READ_MEDIA_IMAGES",
-      "READ_MEDIA_VIDEO",
+      "INTERNET",
+      "ACCESS_NETWORK_STATE",
+      "WAKE_LOCK",
+      "READ_EXTERNAL_STORAGE", // Vieux Android
+      "WRITE_EXTERNAL_STORAGE", // Vieux Android
+      "READ_MEDIA_IMAGES", // Android 13+
+      "READ_MEDIA_VIDEO", // Android 13+
+      "POST_NOTIFICATIONS",
     ],
   },
   web: {
@@ -40,23 +45,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   plugins: [
     "expo-router",
     "@react-native-firebase/app",
-    "@livekit/react-native-expo-plugin",
-    "@config-plugins/react-native-webrtc",
+    "@react-native-firebase/auth", // Recommandé pour l'auth native
+    "@react-native-firebase/messaging", // Indispensable pour les notifications
     [
-      "react-native-video",
+      "@react-native-firebase/app-check",
       {
-        enableCacheExtension: true,
-        androidExtensions: {
-          useExoplayerHls: true,
-        },
-      },
-    ],
-    [
-      "react-native-vision-camera",
-      {
-        cameraPermissionText: "Flikk needs access to your Camera.",
-        enableMicrophonePermission: true,
-        microphonePermissionText: "Flikk needs access to your Microphone.",
+        // Nécessaire pour iOS (partage le token entre l'app et les extensions)
+        appleTokenSharing: true,
       },
     ],
     [
@@ -87,7 +82,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         photosPermission: "Allow Flikk to access your photos.",
         isAccessMediaLocationEnabled: true,
-        granularPermissions: ["photo"],
+        granularPermissions: ["photo", "video"],
       },
     ],
     [

@@ -4,7 +4,6 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useEffect, useState } from "react";
 import { Stack } from "expo-router";
 import { View } from "react-native";
-import { registerGlobals } from "@livekit/react-native";
 import "../global.css";
 import "../i18n";
 import { useAppTheme } from "@/hooks/use-app-theme";
@@ -13,8 +12,6 @@ import { CustomSplash } from "@/components/features/custom-splash";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-
-registerGlobals();
 
 const queryClient = new QueryClient();
 
