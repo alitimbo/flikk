@@ -28,6 +28,7 @@ export interface UserProfile {
   role: UserRole;
   status: UserStatus;
   isMerchant: boolean; // Kept for backward compatibility, but synced with role
+  followerCount?: number;
   merchantInfo?: UserMerchantInfo;
   createdAt?: any;
   updatedAt?: any;

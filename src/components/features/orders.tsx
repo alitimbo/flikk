@@ -123,7 +123,7 @@ export function OrdersScreen() {
 
 function OrderCard({ order, onPress }: { order: Order; onPress?: () => void }) {
   const { t } = useTranslation();
-  const status = order.paymentStatus || order.status || "pending";
+  const status = order.status || order.paymentStatus || "pending";
   const statusLabel =
     status === "paid"
       ? t("orders.statusPaid")

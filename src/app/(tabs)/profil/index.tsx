@@ -621,6 +621,20 @@ export default function ProfilIndex() {
               />
             )}
 
+            {userProfile?.isMerchant && (
+              <MenuItem
+                icon="storefront-outline"
+                title={t("profile.menu.viewMyStore")}
+                subtitle={t("profile.menu.viewMyStoreSubtitle")}
+                onPress={() =>
+                  router.push({
+                    pathname: "/(tabs)/home/merchant/[id]",
+                    params: { id: authUser.uid },
+                  })
+                }
+              />
+            )}
+
             {/* 3. Favoris */}
             <MenuItem
               icon="heart-outline"

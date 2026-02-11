@@ -116,7 +116,7 @@ export function MerchantOrdersScreen() {
               order={item}
               onPress={() =>
                 router.push({
-                  pathname: "/(tabs)/purchase/details",
+                  pathname: "/(tabs)/profil/orders/details",
                   params: { id: item.orderId },
                 })
               }
@@ -159,12 +159,14 @@ function MerchantOrderCard({
   onPress?: () => void;
 }) {
   const { t } = useTranslation();
-  const status = order.paymentStatus || order.status || "pending";
+  const status = order.status || order.paymentStatus || "pending";
   const statusLabel =
     status === "paid"
       ? t("orders.statusPaid")
       : status === "delivered" || status === "shipped" || status === "shipping"
         ? t("orders.statusDelivered")
+      : status === "failed"
+        ? t("orders.statusFailed")
       : t("orders.statusPending");
 
   return (

@@ -12,6 +12,8 @@ import {
   Pressable,
   StyleSheet,
   Image,
+  ScrollView,
+  Animated,
   PanResponder,
   Modal,
   TextInput,
@@ -70,10 +72,19 @@ export function FeedItem({
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isUserPaused, setIsUserPaused] = useState(false);
   const [isScrubbing, setIsScrubbing] = useState(false);
   const wasPlayingRef = useRef(false);
   const barWidthRef = useRef(1);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [isGuaranteeOpen, setIsGuaranteeOpen] = useState(false);
+  const [isDeliveryOpen, setIsDeliveryOpen] = useState(false);
+  const [isImagePreviewOpen, setIsImagePreviewOpen] = useState(false);
+  const guaranteeOpacity = useRef(new Animated.Value(0)).current;
+  const guaranteeTranslateY = useRef(new Animated.Value(24)).current;
+  const deliveryOpacity = useRef(new Animated.Value(0)).current;
+  const deliveryTranslateY = useRef(new Animated.Value(24)).current;
   const [isLaunchSuccessOpen, setIsLaunchSuccessOpen] = useState(false);
   const [isAuthRequiredOpen, setIsAuthRequiredOpen] = useState(false);
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
@@ -123,11 +134,15 @@ export function FeedItem({
         onRequestNext?.(index);
       }
     });
+    const playingSub = player.addListener("playingChange", (payload) => {
+      setIsPlaying(payload.isPlaying);
+    });
 
     return () => {
       timeSub.remove();
       sourceSub.remove();
       endSub.remove();
+      playingSub.remove();
     };
   }, [player, isScrubbing, isActive, index, onRequestNext]);
 
@@ -143,6 +158,42 @@ export function FeedItem({
       hideSub.remove();
     };
   }, []);
+
+  useEffect(() => {
+    if (!isGuaranteeOpen) return;
+    guaranteeOpacity.setValue(0);
+    guaranteeTranslateY.setValue(24);
+    Animated.parallel([
+      Animated.timing(guaranteeOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(guaranteeTranslateY, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [isGuaranteeOpen, guaranteeOpacity, guaranteeTranslateY]);
+
+  useEffect(() => {
+    if (!isDeliveryOpen) return;
+    deliveryOpacity.setValue(0);
+    deliveryTranslateY.setValue(24);
+    Animated.parallel([
+      Animated.timing(deliveryOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(deliveryTranslateY, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [isDeliveryOpen, deliveryOpacity, deliveryTranslateY]);
 
   useEffect(() => {
     setViewTracked(false);
@@ -183,6 +234,7 @@ export function FeedItem({
     const updateSource = async () => {
       try {
         await player.replaceAsync(videoUri);
+        setIsUserPaused(false);
       } catch (error) {
         console.error("Flikk Video Error:", error);
       }
@@ -192,19 +244,37 @@ export function FeedItem({
   }, [videoUri, player]);
 
   useEffect(() => {
-    if (isActive && !isCommentsOpen && !isPaymentOpen) {
+    const isInfoOpen = isGuaranteeOpen || isDeliveryOpen;
+    if (
+      isActive &&
+      !isCommentsOpen &&
+      !isPaymentOpen &&
+      !isInfoOpen &&
+      !isImagePreviewOpen
+    ) {
       player.play();
+      setIsUserPaused(false);
     } else {
       player.pause();
     }
-  }, [isActive, isCommentsOpen, isPaymentOpen, player]);
+  }, [
+    isActive,
+    isCommentsOpen,
+    isPaymentOpen,
+    isGuaranteeOpen,
+    isDeliveryOpen,
+    isImagePreviewOpen,
+    player,
+  ]);
 
   const togglePlayback = useCallback(() => {
     onUserAction?.();
     if (player.playing) {
       player.pause();
+      setIsUserPaused(true);
     } else {
       player.play();
+      setIsUserPaused(false);
     }
   }, [player, onUserAction]);
 
@@ -404,6 +474,17 @@ export function FeedItem({
 
       <Pressable onPress={togglePlayback} className="absolute inset-0" />
 
+      {isActive && isUserPaused && !isPlaying && !isCommentsOpen && !isPaymentOpen ? (
+        <View
+          pointerEvents="none"
+          className="absolute inset-0 items-center justify-center"
+        >
+          <View className="h-16 w-16 items-center justify-center rounded-full border border-white/20 bg-black/45">
+            <Ionicons name="play" size={28} color="#CCFF00" />
+          </View>
+        </View>
+      ) : null}
+
       {/* VIEW COUNT BADGE (Top Right) */}
       <View
         className="absolute right-4 bg-black/40 px-3 py-1.5 rounded-full flex-row items-center gap-1.5"
@@ -475,13 +556,19 @@ export function FeedItem({
           {/* PRODUCT CARD */}
           <View className="bg-flikk-card border border-white/10 rounded-2xl p-4 shadow-2xl overflow-hidden">
             <View className="flex-row items-center gap-4 mb-3">
-              <View className="h-14 w-14 rounded-xl overflow-hidden bg-white/5">
+              <Pressable
+                className="h-14 w-14 rounded-xl overflow-hidden bg-white/5"
+                onPress={() => {
+                  onUserAction?.();
+                  setIsImagePreviewOpen(true);
+                }}
+              >
                 <Image
                   source={{ uri: publication.imageUrl }}
                   style={StyleSheet.absoluteFill}
                   resizeMode="cover"
                 />
-              </View>
+              </Pressable>
               <View className="flex-1">
                 <Text
                   className="text-white font-display text-base mb-0.5 font-normal"
@@ -503,6 +590,30 @@ export function FeedItem({
                 {t("feed.buyNow")}
               </Text>
             </Pressable>
+
+            <View className="mt-3 flex-row items-center justify-center">
+              <Pressable
+                onPress={() => {
+                  onUserAction?.();
+                  setIsGuaranteeOpen(true);
+                }}
+              >
+                <Text className="text-[11px] text-flikk-text-muted underline">
+                  {t("payment.guaranteeLink")}
+                </Text>
+              </Pressable>
+              <Text className="mx-2 text-[11px] text-flikk-text-muted">•</Text>
+              <Pressable
+                onPress={() => {
+                  onUserAction?.();
+                  setIsDeliveryOpen(true);
+                }}
+              >
+                <Text className="text-[11px] text-flikk-text-muted underline">
+                  {t("payment.deliveryLink")}
+                </Text>
+              </Pressable>
+            </View>
           </View>
         </View>
 
@@ -746,6 +857,104 @@ export function FeedItem({
           setCommentCount((prev) => Math.max(0, prev + delta))
         }
       />
+
+      <Modal
+        visible={isGuaranteeOpen}
+        transparent
+        animationType="none"
+        onRequestClose={() => setIsGuaranteeOpen(false)}
+      >
+        <Pressable
+          className="flex-1 bg-black/60"
+          onPress={() => setIsGuaranteeOpen(false)}
+        />
+        <View className="absolute inset-0 items-center justify-center px-5">
+          <Animated.View
+            className="w-full max-w-[360px] max-h-[62%] rounded-3xl border border-white/10 bg-flikk-card p-5"
+            style={{
+              opacity: guaranteeOpacity,
+              transform: [{ translateY: guaranteeTranslateY }],
+            }}
+          >
+            <View className="mb-3 flex-row items-center justify-between">
+              <Text className="font-display text-lg text-flikk-text">
+                {t("payment.guaranteeTitle")}
+              </Text>
+              <Pressable onPress={() => setIsGuaranteeOpen(false)} className="p-1">
+                <Ionicons name="close" size={20} color="#FFFFFF" />
+              </Pressable>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text className="text-sm leading-6 text-flikk-text-muted">
+                {t("payment.guaranteeBody")}
+              </Text>
+            </ScrollView>
+          </Animated.View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={isDeliveryOpen}
+        transparent
+        animationType="none"
+        onRequestClose={() => setIsDeliveryOpen(false)}
+      >
+        <Pressable
+          className="flex-1 bg-black/60"
+          onPress={() => setIsDeliveryOpen(false)}
+        />
+        <View className="absolute inset-0 items-center justify-center px-5">
+          <Animated.View
+            className="w-full max-w-[360px] max-h-[62%] rounded-3xl border border-white/10 bg-flikk-card p-5"
+            style={{
+              opacity: deliveryOpacity,
+              transform: [{ translateY: deliveryTranslateY }],
+            }}
+          >
+            <View className="mb-3 flex-row items-center justify-between">
+              <Text className="font-display text-lg text-flikk-text">
+                {t("payment.deliveryTitle")}
+              </Text>
+              <Pressable onPress={() => setIsDeliveryOpen(false)} className="p-1">
+                <Ionicons name="close" size={20} color="#FFFFFF" />
+              </Pressable>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text className="text-sm leading-6 text-flikk-text-muted">
+                {t("payment.deliveryBody")}
+              </Text>
+            </ScrollView>
+          </Animated.View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={isImagePreviewOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsImagePreviewOpen(false)}
+      >
+        <Pressable
+          className="flex-1 bg-black/90"
+          onPress={() => setIsImagePreviewOpen(false)}
+        >
+          <View className="absolute right-5 top-14 z-10">
+            <Pressable
+              onPress={() => setIsImagePreviewOpen(false)}
+              className="h-10 w-10 items-center justify-center rounded-full bg-white/15"
+            >
+              <Ionicons name="close" size={22} color="#FFFFFF" />
+            </Pressable>
+          </View>
+          <View className="flex-1 items-center justify-center px-4">
+            <Image
+              source={{ uri: publication.imageUrl }}
+              className="h-[72%] w-full"
+              resizeMode="contain"
+            />
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }

@@ -3,23 +3,19 @@ import { View, Text, Pressable, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
-import { getAuth } from "@react-native-firebase/auth";
 import { useOrderById } from "@/hooks/useOrderById";
 
-export default function PurchaseDetailsScreen() {
+export default function MerchantOrderDetailsScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const authUser = getAuth().currentUser;
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: order, isLoading } = useOrderById(id);
 
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-flikk-dark">
-        <Text className="text-sm text-flikk-text-muted">
-          {t("orders.loading")}
-        </Text>
+        <Text className="text-sm text-flikk-text-muted">{t("orders.loading")}</Text>
       </View>
     );
   }
@@ -27,9 +23,7 @@ export default function PurchaseDetailsScreen() {
   if (!order) {
     return (
       <View className="flex-1 items-center justify-center bg-flikk-dark px-6">
-        <Text className="text-sm text-flikk-text-muted">
-          {t("orders.notFound")}
-        </Text>
+        <Text className="text-sm text-flikk-text-muted">{t("orders.notFound")}</Text>
       </View>
     );
   }
@@ -40,21 +34,12 @@ export default function PurchaseDetailsScreen() {
       ? t("orders.statusPaid")
       : status === "delivered" || status === "shipped" || status === "shipping"
         ? t("orders.statusDelivered")
-      : status === "failed"
-        ? t("orders.statusFailed")
-        : t("orders.statusPending");
-
-  const isMerchantViewer =
-    !!authUser?.uid &&
-    !!order.merchantId &&
-    authUser.uid === order.merchantId &&
-    authUser.uid !== order.customerId;
+        : status === "failed"
+          ? t("orders.statusFailed")
+          : t("orders.statusPending");
 
   return (
-    <View
-      className="flex-1 bg-flikk-dark"
-      style={{ paddingTop: insets.top }}
-    >
+    <View className="flex-1 bg-flikk-dark" style={{ paddingTop: insets.top }}>
       <View className="px-6 py-4 flex-row items-center">
         <Pressable onPress={() => router.back()} className="p-1">
           <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
@@ -89,9 +74,7 @@ export default function PurchaseDetailsScreen() {
         </View>
 
         <View className="mt-4 flex-row items-center justify-between rounded-2xl bg-white/5 px-4 py-3">
-          <Text className="text-sm text-flikk-text-muted">
-            {t("orders.statusLabel")}
-          </Text>
+          <Text className="text-sm text-flikk-text-muted">{t("orders.statusLabel")}</Text>
           <Text className="text-sm text-flikk-lime">{statusLabel}</Text>
         </View>
       </View>
@@ -100,11 +83,6 @@ export default function PurchaseDetailsScreen() {
         <DetailRow label={t("orders.orderNumber")} value={order.orderNumber ?? "-"} />
         <DetailRow label={t("orders.detailReference")} value={order.paymentReference} />
         <DetailRow label={t("orders.detailExternal")} value={order.externalReference ?? "-"} />
-        <DetailRow label={t("orders.detailCustomer")} value={order.customerName ?? "-"} />
-        {!isMerchantViewer ? (
-          <DetailRow label={t("orders.detailPhone")} value={order.msisdn ?? "-"} />
-        ) : null}
-        <DetailRow label={t("orders.detailMerchant")} value={order.merchantName ?? "-"} />
       </View>
     </View>
   );
@@ -114,9 +92,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <View className="flex-row items-start rounded-2xl border border-white/10 bg-flikk-card px-4 py-3">
       <Text className="w-28 text-xs text-flikk-text-muted">{label}</Text>
-      <Text className="ml-3 flex-1 text-right text-xs text-flikk-text">
-        {value}
-      </Text>
+      <Text className="ml-3 flex-1 text-right text-xs text-flikk-text">{value}</Text>
     </View>
   );
 }

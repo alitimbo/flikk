@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useCallback, useEffect } from "react";
 import { View, Text, Image, Pressable } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -10,6 +10,7 @@ import { FlashList } from "@shopify/flash-list";
 import { Publication } from "@/types";
 import { SkeletonGridCard, SkeletonBlock } from "@/components/ui/Skeleton";
 import { getAuth } from "@react-native-firebase/auth";
+import { useMerchantEngagement } from "@/hooks/useMerchantEngagement";
 
 export default function MerchantProfile() {
   const { id } = useLocalSearchParams();
@@ -18,8 +19,19 @@ export default function MerchantProfile() {
   const router = useRouter();
   const uid = typeof id === "string" ? id : "";
   const { data: profile, isLoading } = useUserProfile(uid);
-  const isOwnProfile = getAuth().currentUser?.uid === uid;
-  const [isFollowing, setIsFollowing] = useState(false);
+  const viewerId = getAuth().currentUser?.uid;
+  const isOwnProfile = viewerId === uid;
+  const {
+    followerCount,
+    orderCount,
+    isFollowing,
+    isLoading: isEngagementLoading,
+    followerCountError,
+    orderCountError,
+    isFollowingError,
+    toggleFollow,
+    isToggling,
+  } = useMerchantEngagement(uid, viewerId);
   const {
     publications,
     fetchNextPage,
@@ -35,6 +47,24 @@ export default function MerchantProfile() {
     }
     return [profile.firstName, profile.lastName].filter(Boolean).join(" ");
   }, [profile]);
+
+  useEffect(() => {
+    if (followerCountError) {
+      console.log("[MerchantProfile] followerCount error:", followerCountError);
+    }
+  }, [followerCountError]);
+
+  useEffect(() => {
+    if (orderCountError) {
+      console.log("[MerchantProfile] orderCount error:", orderCountError);
+    }
+  }, [orderCountError]);
+
+  useEffect(() => {
+    if (isFollowingError) {
+      console.log("[MerchantProfile] isFollowing error:", isFollowingError);
+    }
+  }, [isFollowingError]);
 
   if (!isLoading && (!profile || !profile.isMerchant)) {
     return (
@@ -136,6 +166,25 @@ export default function MerchantProfile() {
             <Text className="mt-4 font-display text-2xl text-flikk-text">
               {displayName}
             </Text>
+            <View className="mt-3 flex-row items-center gap-5">
+              <View className="items-center">
+                <Text className="font-display text-base text-flikk-text">
+                  {followerCount}
+                </Text>
+                <Text className="mt-0.5 text-xs text-flikk-text-muted">
+                  {t("merchant.followers")}
+                </Text>
+              </View>
+              <View className="h-5 w-px bg-white/15" />
+              <View className="items-center">
+                <Text className="font-display text-base text-flikk-text">
+                  {orderCount}
+                </Text>
+                <Text className="mt-0.5 text-xs text-flikk-text-muted">
+                  {t("merchant.orders")}
+                </Text>
+              </View>
+            </View>
             <Pressable
               className={`mt-4 h-11 w-full max-w-[220px] items-center justify-center rounded-full ${
                 isOwnProfile
@@ -144,8 +193,19 @@ export default function MerchantProfile() {
                     ? "bg-white/10"
                     : "bg-flikk-lime"
               }`}
-              onPress={() => setIsFollowing((prev) => !prev)}
-              disabled={isOwnProfile}
+              onPress={async () => {
+                if (isOwnProfile || isToggling) return;
+                if (!viewerId) {
+                  router.push("/(tabs)/profil");
+                  return;
+                }
+                try {
+                  await toggleFollow();
+                } catch (error) {
+                  console.log("[MerchantProfile] Follow error:", error);
+                }
+              }}
+              disabled={isOwnProfile || isToggling || isEngagementLoading}
             >
               <Text
                 className={`font-display text-sm ${
