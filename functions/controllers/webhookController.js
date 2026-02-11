@@ -26,77 +26,101 @@ exports.ipayWebhook = onRequest(async (req, res) => {
   }
 
   const data = req.body?.data;
-  if (!data?.reference) {
-    logger.warn("Webhook missing reference", { body: req.body });
+  if (!data?.reference && !data?.external_reference) {
+    logger.warn("Webhook missing identifiers", { body: req.body });
     return res.status(400).send("Missing reference");
   }
 
-  const paymentRef = admin.firestore().collection("payments").doc(data.reference);
-  const paymentSnap = await paymentRef.get();
-  if (!paymentSnap.exists) {
-    logger.warn("Webhook payment not found", { reference: data.reference });
+  let paymentRef = null;
+  let paymentSnap = null;
+
+  if (data.reference) {
+    paymentRef = admin.firestore().collection("payments").doc(data.reference);
+    paymentSnap = await paymentRef.get();
   }
+
+  if ((!paymentSnap || !paymentSnap.exists) && data.external_reference) {
+    const paymentQuery = await admin
+      .firestore()
+      .collection("payments")
+      .where("externalReference", "==", data.external_reference)
+      .limit(1)
+      .get();
+    if (!paymentQuery.empty) {
+      paymentRef = paymentQuery.docs[0].ref;
+      paymentSnap = paymentQuery.docs[0];
+    }
+  }
+
+  if (!paymentSnap || !paymentSnap.exists || !paymentRef) {
+    logger.warn("Webhook payment not found", {
+      reference: data.reference,
+      externalReference: data.external_reference,
+    });
+    return res.status(200).json({ received: true });
+  }
+
+  const payment = paymentSnap.data() || {};
+  const orderId = payment.orderId || payment.reference || data.reference;
+  const orderRef = admin.firestore().collection("orders").doc(orderId);
+  const mappedStatus = data.status === "succeeded" ? "paid" : "failed";
 
   await paymentRef.set(
     {
-      reference: data.reference,
+      reference: payment.reference || data.reference,
       status: data.status || "pending",
       externalReference: data.external_reference ?? null,
       msisdn: data.msisdn ?? null,
+      paymentStatus: mappedStatus,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       webhookReceivedAt: admin.firestore.FieldValue.serverTimestamp(),
     },
     { merge: true },
   );
 
-  if (data.status === "succeeded" && paymentSnap.exists) {
-    const payment = paymentSnap.data();
-    const orderRef = admin.firestore().collection("orders").doc();
-    const orderId = orderRef.id;
+  const orderSnap = await orderRef.get();
+  const wasPaid = (orderSnap.data()?.status || "") === "paid";
 
+  await orderRef.set(
+    {
+      orderId,
+      paymentReference: payment.reference || data.reference,
+      externalReference: data.external_reference ?? payment.externalReference ?? null,
+      paymentStatus: mappedStatus,
+      status: mappedStatus,
+      msisdn: data.msisdn ?? payment.msisdn ?? null,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      webhookReceivedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+
+  if (data.status === "succeeded" && payment.publicationId && !wasPaid) {
     await admin.firestore().runTransaction(async (tx) => {
-      const latestPaymentSnap = await tx.get(paymentRef);
-      const latestPayment = latestPaymentSnap.data() || {};
-      if (latestPayment.orderId) return;
-
-      tx.set(orderRef, {
-        orderId,
-        paymentReference: data.reference,
-        paymentStatus: "paid",
-        externalReference: data.external_reference ?? null,
-        publicationId: payment.publicationId ?? null,
-        productName: payment.productName ?? null,
-        productImageUrl: payment.productImageUrl ?? null,
-        amount: payment.amount ?? null,
-        currency: payment.currency ?? "XOF",
-        country: payment.country ?? "NE",
-        msisdn: data.msisdn ?? payment.msisdn ?? null,
-        customerName: payment.customerName ?? null,
-        customerId: payment.userId ?? null,
-        merchantId: payment.merchantId ?? null,
-        merchantName: payment.merchantName ?? null,
-        merchantLogoUrl: payment.merchantLogoUrl ?? null,
-        status: "paid",
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      tx.update(paymentRef, {
-        orderId,
-        paymentStatus: "paid",
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      if (payment.publicationId) {
-        const publicationRef = admin
-          .firestore()
-          .collection("publications")
-          .doc(payment.publicationId);
-        tx.update(publicationRef, {
+      const latestOrderSnap = await tx.get(orderRef);
+      const latestStatus = latestOrderSnap.data()?.status;
+      if (latestStatus === "paid") return;
+      tx.set(
+        orderRef,
+        {
+          status: "paid",
+          paymentStatus: "paid",
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+      const publicationRef = admin
+        .firestore()
+        .collection("publications")
+        .doc(payment.publicationId);
+      tx.set(
+        publicationRef,
+        {
           orderCount: admin.firestore.FieldValue.increment(1),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-      }
+        },
+        { merge: true },
+      );
     });
   }
 

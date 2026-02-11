@@ -1,26 +1,31 @@
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import {
   ActivityIndicator,
   Image,
-  Pressable,
   RefreshControl,
   Text,
   View,
+  Pressable,
 } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { getAuth } from "@react-native-firebase/auth";
-import { useOrders } from "@/hooks/useOrders";
+import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { useMerchantOrders } from "@/hooks/useMerchantOrders";
 import type { Order } from "@/types";
 import { SkeletonBlock } from "@/components/ui/Skeleton";
-import { useRouter } from "expo-router";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
-export function OrdersScreen() {
+export function MerchantOrdersScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const authUser = getAuth().currentUser;
+  const { data: userProfile, isLoading: isProfileLoading } = useUserProfile(
+    authUser?.uid,
+  );
   const {
     data,
     isLoading,
@@ -31,18 +36,16 @@ export function OrdersScreen() {
     isFetchingNextPage,
     isError,
     error,
-  } = useOrders(authUser?.uid);
+  } = useMerchantOrders(authUser?.uid);
 
   const orders = useMemo(
     () => data?.pages.flatMap((page) => page.orders) ?? [],
     [data],
   );
 
-  useEffect(() => {
-    if (isError && error) {
-      console.log("[Orders] Firestore error:", error);
-    }
-  }, [isError, error]);
+  if (isError && error) {
+    console.log("[MerchantOrders] Firestore error:", error);
+  }
 
   if (!authUser) {
     return (
@@ -57,20 +60,47 @@ export function OrdersScreen() {
     );
   }
 
+  if (isProfileLoading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-flikk-dark">
+        <ActivityIndicator color="#CCFF00" />
+      </View>
+    );
+  }
+
+  if (!userProfile?.isMerchant) {
+    return (
+      <View
+        className="flex-1 items-center justify-center bg-flikk-dark px-6"
+        style={{ paddingTop: insets.top }}
+      >
+        <Text className="text-center font-display text-lg text-flikk-text">
+          {t("orders.merchantOnly")}
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1 bg-flikk-dark" style={{ paddingTop: insets.top }}>
-      <View className="px-6 pb-4 pt-4">
-        <Text className="font-display text-2xl text-flikk-text">
-          {t("orders.title")}
+      <View className="px-6 py-4 flex-row items-center">
+        <Pressable onPress={() => router.back()} className="p-1">
+          <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+        </Pressable>
+        <Text className="ml-3 font-display text-xl text-flikk-text">
+          {t("orders.merchantTitle")}
         </Text>
+      </View>
+
+      <View className="px-6 pb-4 pt-0">
         <Text className="mt-1 text-sm text-flikk-text-muted">
-          {t("orders.subtitle")}
+          {t("orders.merchantSubtitle")}
         </Text>
       </View>
 
       {isLoading ? (
         <View className="px-6">
-          <OrdersSkeleton />
+          <MerchantOrdersSkeleton />
         </View>
       ) : orders.length === 0 ? (
         <View className="flex-1 items-center justify-center px-6">
@@ -82,7 +112,7 @@ export function OrdersScreen() {
         <FlashList
           data={orders}
           renderItem={({ item }) => (
-            <OrderCard
+            <MerchantOrderCard
               order={item}
               onPress={() =>
                 router.push({
@@ -121,21 +151,21 @@ export function OrdersScreen() {
   );
 }
 
-function OrderCard({ order, onPress }: { order: Order; onPress?: () => void }) {
+function MerchantOrderCard({
+  order,
+  onPress,
+}: {
+  order: Order;
+  onPress?: () => void;
+}) {
   const { t } = useTranslation();
   const status = order.paymentStatus || order.status || "pending";
   const statusLabel =
     status === "paid"
       ? t("orders.statusPaid")
-      : status === "failed"
-        ? t("orders.statusFailed")
-        : t("orders.statusPending");
-  const statusClass =
-    status === "paid"
-      ? "bg-flikk-lime/15 text-flikk-lime"
-      : status === "failed"
-        ? "bg-red-500/15 text-red-400"
-        : "bg-white/10 text-flikk-text-muted";
+      : status === "delivered" || status === "shipped" || status === "shipping"
+        ? t("orders.statusDelivered")
+      : t("orders.statusPending");
 
   return (
     <Pressable
@@ -159,20 +189,22 @@ function OrderCard({ order, onPress }: { order: Order; onPress?: () => void }) {
           {(order.amount ?? 0).toLocaleString()} {order.currency ?? "XOF"}
         </Text>
         <Text className="mt-1 text-xs text-flikk-text-muted" numberOfLines={1}>
-          {order.merchantName || ""}
+          {order.customerName || "-"}
         </Text>
         <Text className="mt-1 text-xs text-flikk-text-muted" numberOfLines={1}>
           {t("orders.orderNumber")}: {order.orderNumber || "-"}
         </Text>
       </View>
-      <View className={`rounded-full px-3 py-1 ${statusClass}`}>
-        <Text className="text-[10px] font-semibold">{statusLabel}</Text>
+      <View className="rounded-full bg-flikk-lime/15 px-3 py-1">
+        <Text className="text-[10px] font-semibold text-flikk-lime">
+          {statusLabel}
+        </Text>
       </View>
     </Pressable>
   );
 }
 
-function OrdersSkeleton() {
+function MerchantOrdersSkeleton() {
   return (
     <View className="gap-4">
       {[0, 1, 2].map((item) => (

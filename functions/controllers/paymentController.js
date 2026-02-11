@@ -12,6 +12,10 @@ function buildTransactionId(publicationId) {
   return `flikk_${publicationId}_${stamp}_${rand}`;
 }
 
+function formatOrderNumber(sequence, year) {
+  return `${String(sequence).padStart(3, "0")}-${year}`;
+}
+
 function assertConfig() {
   if (!IPAY_PRIVATE_KEY) {
     throw new HttpsError("failed-precondition", "Missing IPAY_PRIVATE_KEY.");
@@ -96,6 +100,63 @@ exports.requestPayment = onCall({ invoker: "public" }, async (request) => {
   }
 
   const paymentRef = admin.firestore().collection("payments").doc(reference);
+  const orderRef = admin.firestore().collection("orders").doc(reference);
+  const year = new Date().getFullYear();
+  const counterRef = admin
+    .firestore()
+    .collection("meta")
+    .doc("orderCounters")
+    .collection("years")
+    .doc(String(year));
+
+  const orderNumber = await admin.firestore().runTransaction(async (tx) => {
+    const existingOrderSnap = await tx.get(orderRef);
+    if (existingOrderSnap.exists) {
+      return existingOrderSnap.data()?.orderNumber || null;
+    }
+
+    const counterSnap = await tx.get(counterRef);
+    const currentSequence = counterSnap.exists
+      ? Number(counterSnap.data()?.lastSequence || 0)
+      : 0;
+    const nextSequence = currentSequence + 1;
+    const nextOrderNumber = formatOrderNumber(nextSequence, year);
+
+    tx.set(
+      counterRef,
+      {
+        lastSequence: nextSequence,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+
+    tx.set(orderRef, {
+      orderId: reference,
+      orderNumber: nextOrderNumber,
+      paymentReference: reference,
+      externalReference: transactionId,
+      paymentStatus: status === "succeeded" ? "paid" : "pending",
+      status: status === "succeeded" ? "paid" : "pending",
+      publicationId,
+      productName: publication?.productName ?? null,
+      productImageUrl: publication?.imageUrl ?? null,
+      amount,
+      currency,
+      country,
+      msisdn,
+      customerName: customerName || "Client Flikk",
+      customerId: request.auth.uid,
+      merchantId: publication?.userId ?? null,
+      merchantName: publication?.merchantName ?? null,
+      merchantLogoUrl: publication?.merchantLogoUrl ?? null,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return nextOrderNumber;
+  });
+
   await paymentRef.set({
     reference,
     status,
@@ -113,11 +174,14 @@ exports.requestPayment = onCall({ invoker: "public" }, async (request) => {
     merchantLogoUrl: publication?.merchantLogoUrl ?? null,
     productName: publication?.productName ?? null,
     productImageUrl: publication?.imageUrl ?? null,
+    orderId: reference,
+    orderNumber: orderNumber ?? null,
+    paymentStatus: status === "succeeded" ? "paid" : "pending",
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
-  return { reference, status };
+  return { reference, status, orderNumber: orderNumber ?? undefined };
 });
 
 exports.getPaymentStatus = onCall({ invoker: "public" }, async (request) => {
@@ -163,4 +227,127 @@ exports.getPaymentStatus = onCall({ invoker: "public" }, async (request) => {
   );
 
   return data;
+});
+
+exports.requestManualOrder = onCall({ invoker: "public" }, async (request) => {
+  if (!request.auth?.uid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+
+  const {
+    publicationId,
+    msisdn,
+    customerName,
+    country = "NE",
+    currency = "XOF",
+  } = request.data || {};
+
+  if (!publicationId || typeof publicationId !== "string") {
+    throw new HttpsError("invalid-argument", "publicationId is required.");
+  }
+  if (!msisdn || typeof msisdn !== "string") {
+    throw new HttpsError("invalid-argument", "msisdn is required.");
+  }
+
+  const publicationRef = admin.firestore().collection("publications").doc(publicationId);
+  const publicationSnap = await publicationRef.get();
+  if (!publicationSnap.exists) {
+    throw new HttpsError("not-found", "Publication not found.");
+  }
+
+  const publication = publicationSnap.data();
+  const amount = Number(publication?.price ?? 0);
+  if (!amount || amount < 100) {
+    throw new HttpsError("failed-precondition", "Amount must be >= 100.");
+  }
+
+  const transactionId = buildTransactionId(publicationId);
+  const reference = `manual_${transactionId}`;
+  const status = "pending";
+
+  const paymentRef = admin.firestore().collection("payments").doc(reference);
+  const orderRef = admin.firestore().collection("orders").doc(reference);
+  const year = new Date().getFullYear();
+  const counterRef = admin
+    .firestore()
+    .collection("meta")
+    .doc("orderCounters")
+    .collection("years")
+    .doc(String(year));
+
+  const orderNumber = await admin.firestore().runTransaction(async (tx) => {
+    const existingOrderSnap = await tx.get(orderRef);
+    if (existingOrderSnap.exists) {
+      return existingOrderSnap.data()?.orderNumber || null;
+    }
+
+    const counterSnap = await tx.get(counterRef);
+    const currentSequence = counterSnap.exists
+      ? Number(counterSnap.data()?.lastSequence || 0)
+      : 0;
+    const nextSequence = currentSequence + 1;
+    const nextOrderNumber = formatOrderNumber(nextSequence, year);
+
+    tx.set(
+      counterRef,
+      {
+        lastSequence: nextSequence,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+
+    tx.set(orderRef, {
+      orderId: reference,
+      orderNumber: nextOrderNumber,
+      paymentReference: reference,
+      externalReference: transactionId,
+      paymentStatus: "pending",
+      status: "pending",
+      publicationId,
+      productName: publication?.productName ?? null,
+      productImageUrl: publication?.imageUrl ?? null,
+      amount,
+      currency,
+      country,
+      msisdn,
+      customerName: customerName || "Client Flikk",
+      customerId: request.auth.uid,
+      merchantId: publication?.userId ?? null,
+      merchantName: publication?.merchantName ?? null,
+      merchantLogoUrl: publication?.merchantLogoUrl ?? null,
+      provider: "manual",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return nextOrderNumber;
+  });
+
+  await paymentRef.set({
+    reference,
+    status,
+    transactionId,
+    externalReference: transactionId,
+    publicationId,
+    userId: request.auth.uid,
+    customerName: customerName || "Client Flikk",
+    amount,
+    currency,
+    country,
+    msisdn,
+    merchantId: publication?.userId ?? null,
+    merchantName: publication?.merchantName ?? null,
+    merchantLogoUrl: publication?.merchantLogoUrl ?? null,
+    productName: publication?.productName ?? null,
+    productImageUrl: publication?.imageUrl ?? null,
+    orderId: reference,
+    orderNumber: orderNumber ?? null,
+    paymentStatus: "pending",
+    provider: "manual",
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return { reference, status, orderNumber: orderNumber ?? undefined };
 });

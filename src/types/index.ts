@@ -94,6 +94,7 @@ export interface PaymentRequest {
 export interface PaymentResponse {
   reference: string;
   status: PaymentStatus;
+  orderNumber?: string;
 }
 
 export interface PaymentStatusResponse {
@@ -105,6 +106,7 @@ export interface PaymentStatusResponse {
 
 export interface Order {
   orderId: string;
+  orderNumber?: string | null;
   paymentReference: string;
   paymentStatus: "paid" | "failed" | "pending";
   externalReference?: string | null;
@@ -120,7 +122,7 @@ export interface Order {
   merchantId?: string | null;
   merchantName?: string | null;
   merchantLogoUrl?: string | null;
-  status?: "paid" | "failed" | "pending";
+  status?: "paid" | "failed" | "pending" | "delivered" | "shipped" | "shipping";
   createdAt?: any;
   updatedAt?: any;
 }

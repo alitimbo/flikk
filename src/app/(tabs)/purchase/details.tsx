@@ -37,6 +37,8 @@ export default function PurchaseDetailsScreen() {
   const statusLabel =
     status === "paid"
       ? t("orders.statusPaid")
+      : status === "delivered" || status === "shipped" || status === "shipping"
+        ? t("orders.statusDelivered")
       : status === "failed"
         ? t("orders.statusFailed")
         : t("orders.statusPending");
@@ -92,6 +94,7 @@ export default function PurchaseDetailsScreen() {
       </View>
 
       <View className="mx-6 mt-6 gap-3">
+        <DetailRow label={t("orders.orderNumber")} value={order.orderNumber ?? "-"} />
         <DetailRow label={t("orders.detailReference")} value={order.paymentReference} />
         <DetailRow label={t("orders.detailExternal")} value={order.externalReference ?? "-"} />
         <DetailRow label={t("orders.detailCustomer")} value={order.customerName ?? "-"} />
@@ -104,9 +107,11 @@ export default function PurchaseDetailsScreen() {
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <View className="flex-row items-center justify-between rounded-2xl border border-white/10 bg-flikk-card px-4 py-3">
-      <Text className="text-xs text-flikk-text-muted">{label}</Text>
-      <Text className="text-xs text-flikk-text">{value}</Text>
+    <View className="flex-row items-start rounded-2xl border border-white/10 bg-flikk-card px-4 py-3">
+      <Text className="w-28 text-xs text-flikk-text-muted">{label}</Text>
+      <Text className="ml-3 flex-1 text-right text-xs text-flikk-text">
+        {value}
+      </Text>
     </View>
   );
 }

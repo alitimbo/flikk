@@ -612,6 +612,15 @@ export default function ProfilIndex() {
               onPress={() => router.push("/(tabs)/profil/publications")}
             />
 
+            {userProfile?.isMerchant && (
+              <MenuItem
+                icon="receipt-outline"
+                title={t("profile.menu.orders")}
+                subtitle={t("profile.menu.ordersSubtitle")}
+                onPress={() => router.push("/(tabs)/profil/orders")}
+              />
+            )}
+
             {/* 3. Favoris */}
             <MenuItem
               icon="heart-outline"

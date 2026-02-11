@@ -74,18 +74,17 @@ export function FeedItem({
   const wasPlayingRef = useRef(false);
   const barWidthRef = useRef(1);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [isLaunchSuccessOpen, setIsLaunchSuccessOpen] = useState(false);
   const [isAuthRequiredOpen, setIsAuthRequiredOpen] = useState(false);
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [commentCount, setCommentCount] = useState(
     publication.commentCount || 0,
   );
-  const [paymentMethod, setPaymentMethod] = useState<
-    "airtel" | "moov" | "zamani"
-  >("airtel");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [paymentReference, setPaymentReference] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
+  const [orderNumber, setOrderNumber] = useState<string | null>(null);
   const [isPaymentSubmitting, setIsPaymentSubmitting] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState("");
   const [sheetTranslateY, setSheetTranslateY] = useState(0);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [phoneError, setPhoneError] = useState<string | null>(null);
@@ -265,15 +264,6 @@ export function FeedItem({
       : publication.viewCount;
   const viewCountLabel = t("feed.viewsLabel", { count: viewCountValue });
   const progress = duration > 0 ? currentTime / duration : 0;
-  const paymentOptions = useMemo(
-    () => [
-      { key: "airtel", label: t("payment.airtel") },
-      { key: "moov", label: t("payment.moov") },
-      { key: "zamani", label: t("payment.zamani") },
-    ],
-    [t],
-  );
-
   const openAuthRequired = useCallback(() => {
     setIsAuthRequiredOpen(true);
   }, []);
@@ -284,11 +274,11 @@ export function FeedItem({
       openAuthRequired();
       return;
     }
-    setPhoneNumber(user.phoneNumber ?? "");
+    setPhoneNumber((user.phoneNumber ?? "").replace(/\D/g, ""));
     setPhoneError(null);
-    setPaymentMethod("airtel");
     setPaymentReference(null);
     setPaymentStatus(null);
+    setOrderNumber(null);
     setIsPaymentOpen(true);
     onPaymentOpenChange?.(true);
   }, [openAuthRequired]);
@@ -312,10 +302,8 @@ export function FeedItem({
     setIsPaymentOpen(false);
     setSheetTranslateY(0);
     setKeyboardHeight(0);
-    setPaymentReference(null);
-    setPaymentStatus(null);
-    setIsPaymentSubmitting(false);
     setPhoneError(null);
+    setIsPaymentSubmitting(false);
     onPaymentOpenChange?.(false);
   }, []);
 
@@ -331,14 +319,13 @@ export function FeedItem({
     setPaymentStatus(statusQuery.data.status);
   }, [statusQuery.data?.status]);
 
-  const handleConfirmPayment = useCallback(async () => {
+  const handleLaunchOrderValidate = useCallback(async () => {
     if (!phoneNumber.trim()) return;
     const user = getAuth().currentUser;
     if (!user) {
       openAuthRequired();
       return;
     }
-
     const sanitizeMsisdn = (value: string) =>
       value.replace(/\D/g, "");
     const normalizedMsisdn = sanitizeMsisdn(phoneNumber);
@@ -349,19 +336,13 @@ export function FeedItem({
     setPhoneError(null);
 
     const customerName =
-      userProfile?.merchantInfo?.businessName ||
-      [userProfile?.firstName, userProfile?.lastName]
-        .filter(Boolean)
-        .join(" ") ||
+      [userProfile?.firstName, userProfile?.lastName].filter(Boolean).join(" ") ||
       user.phoneNumber ||
       "Client Flikk";
 
     try {
       setIsPaymentSubmitting(true);
-      const token = await user.getIdToken(true);
-      console.log("Payment debug uid:", user.uid);
-      console.log("Payment debug token:", token?.slice(0, 12));
-      const result = await PaymentService.requestPayment({
+      const result = await PaymentService.requestManualOrder({
         publicationId: publication.id ?? "",
         msisdn: normalizedMsisdn,
         customerName,
@@ -370,6 +351,10 @@ export function FeedItem({
       });
       setPaymentReference(result.reference);
       setPaymentStatus(result.status);
+      setOrderNumber(result.orderNumber ?? null);
+      setPhoneNumber(normalizedMsisdn);
+      closePaymentSheet();
+      setIsLaunchSuccessOpen(true);
     } catch (error) {
       const code = (error as { code?: string })?.code ?? "";
       if (code.includes("unauthenticated")) {
@@ -381,7 +366,7 @@ export function FeedItem({
     } finally {
       setIsPaymentSubmitting(false);
     }
-  }, [phoneNumber, publication.id, userProfile, openAuthRequired]);
+  }, [phoneNumber, t, userProfile, publication.id, openAuthRequired, closePaymentSheet]);
 
   const sheetPanResponder = useMemo(
     () =>
@@ -603,7 +588,7 @@ export function FeedItem({
         visible={isPaymentOpen}
         transparent
         animationType="slide"
-        onRequestClose={() => setIsPaymentOpen(false)}
+        onRequestClose={closePaymentSheet}
       >
         <Pressable className="flex-1 bg-black/50" onPress={closePaymentSheet} />
         <KeyboardAvoidingView
@@ -623,53 +608,19 @@ export function FeedItem({
           >
             <View className="mb-4 h-1.5 w-12 self-center rounded-full bg-white/20" />
             <Text className="font-display text-lg text-flikk-text">
-              {t("payment.title")}
+              {t("payment.contactTitle")}
             </Text>
             <Text className="mt-1 font-body text-sm text-flikk-text-muted">
-              {t("payment.subtitle")}
+              {t("payment.contactSubtitle")}
             </Text>
-
-            <View className="mt-5 gap-3">
-              {paymentOptions.map((option) => {
-                const selected = paymentMethod === option.key;
-                return (
-                  <Pressable
-                    key={option.key}
-                    onPress={() =>
-                      setPaymentMethod(
-                        option.key as "airtel" | "moov" | "zamani",
-                      )
-                    }
-                    className={`flex-row items-center justify-between rounded-2xl border p-4 ${
-                      selected
-                        ? "border-flikk-lime bg-flikk-lime/10"
-                        : "border-white/10 bg-white/5"
-                    }`}
-                  >
-                    <Text className="font-display text-base text-flikk-text">
-                      {option.label}
-                    </Text>
-                    <View
-                      className={`h-5 w-5 rounded-full border ${
-                        selected ? "border-flikk-lime" : "border-white/30"
-                      } items-center justify-center`}
-                    >
-                      {selected && (
-                        <View className="h-2.5 w-2.5 rounded-full bg-flikk-lime" />
-                      )}
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </View>
 
             <View className="mt-6">
               <Text className="mb-2 font-body text-xs text-flikk-text-muted">
-                {t("payment.phoneLabel")}
+                {t("payment.contactPhoneLabel")}
               </Text>
               <TextInput
                 className="h-12 w-full rounded-2xl border border-white/10 bg-flikk-dark px-4 font-body text-base text-flikk-text"
-                placeholder={t("payment.phonePlaceholder")}
+                placeholder={t("payment.contactPhonePlaceholder")}
                 placeholderTextColor="#666666"
                 value={phoneNumber}
                 onChangeText={(value) => {
@@ -693,30 +644,59 @@ export function FeedItem({
                   : "active:scale-[0.98]"
               }`}
               disabled={!phoneNumber.trim() || isPaymentSubmitting}
-              onPress={handleConfirmPayment}
+              onPress={handleLaunchOrderValidate}
             >
               {isPaymentSubmitting ? (
                 <ActivityIndicator color="#121212" />
               ) : (
                 <Text className="font-display text-base text-flikk-dark">
-                  {t("payment.confirm")}
+                  {t("payment.validateOrder")}
                 </Text>
               )}
             </Pressable>
-
-            {paymentStatus && (
-              <View className="mt-4 items-center">
-                <Text className="text-sm text-flikk-text-muted">
-                  {paymentStatus === "succeeded"
-                    ? t("payment.statusSuccess")
-                    : paymentStatus === "pending"
-                      ? t("payment.statusPending")
-                      : t("payment.statusFailed")}
-                </Text>
-              </View>
-            )}
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal
+        visible={isLaunchSuccessOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsLaunchSuccessOpen(false)}
+      >
+        <Pressable
+          className="flex-1 bg-black/60"
+          onPress={() => setIsLaunchSuccessOpen(false)}
+        />
+        <View className="absolute inset-x-6 top-1/2 -translate-y-1/2 rounded-3xl border border-white/10 bg-flikk-card p-6">
+          <View className="mb-4 h-12 w-12 items-center justify-center rounded-2xl bg-flikk-lime/10">
+            <Ionicons name="checkmark-circle" size={24} color="#CCFF00" />
+          </View>
+          <Text className="font-display text-lg text-flikk-text">
+            {t("payment.launchThanksTitle")}
+          </Text>
+          <Text className="mt-2 font-body text-sm text-flikk-text-muted">
+            {t("payment.launchThanksMessage")}
+          </Text>
+          {!!orderNumber && (
+            <View className="mt-3 rounded-2xl bg-white/5 px-3 py-2">
+              <Text className="text-xs text-flikk-text-muted">
+                {t("payment.orderNumberLabel")}
+              </Text>
+              <Text className="mt-1 font-display text-sm text-flikk-lime">
+                {orderNumber}
+              </Text>
+            </View>
+          )}
+          <Pressable
+            className="mt-6 h-12 items-center justify-center rounded-full bg-flikk-lime"
+            onPress={() => setIsLaunchSuccessOpen(false)}
+          >
+            <Text className="font-display text-base text-flikk-dark">
+              {t("payment.close")}
+            </Text>
+          </Pressable>
+        </View>
       </Modal>
 
       <Modal

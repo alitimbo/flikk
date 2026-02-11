@@ -13,6 +13,15 @@ export class PaymentService {
     return result.data;
   }
 
+  static async requestManualOrder(payload: PaymentRequest): Promise<PaymentResponse> {
+    const call = httpsCallable<PaymentRequest, PaymentResponse>(
+      this.functions,
+      "requestManualOrder",
+    );
+    const result = await call(payload);
+    return result.data;
+  }
+
   static async getPaymentStatus(reference: string): Promise<PaymentStatusResponse> {
     const call = httpsCallable<{ reference: string }, PaymentStatusResponse>(
       this.functions,

@@ -33,6 +33,7 @@ setGlobalOptions({
 exports.onRawVideoUpload = publicationController.onRawVideoUpload;
 exports.incrementViewOnce = viewController.incrementViewOnce;
 exports.requestPayment = paymentController.requestPayment;
+exports.requestManualOrder = paymentController.requestManualOrder;
 exports.getPaymentStatus = paymentController.getPaymentStatus;
 exports.ipayWebhook = webhookController.ipayWebhook;
 
