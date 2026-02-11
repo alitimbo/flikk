@@ -109,6 +109,7 @@ export function FeedItem({
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const deviceId = useMemo(() => DeviceService.getDeviceId(), []);
+  const wasActiveRef = useRef(false);
 
   const videoUri = useMemo(
     () => publication.hlsUrl || publication.videoUrl,
@@ -254,6 +255,16 @@ export function FeedItem({
 
   useEffect(() => {
     const isInfoOpen = isGuaranteeOpen || isDeliveryOpen;
+
+    // Reset playback when the card leaves viewport so coming back restarts from 0.
+    if (wasActiveRef.current && !isActive) {
+      player.pause();
+      player.currentTime = 0;
+      setCurrentTime(0);
+      setIsUserPaused(false);
+    }
+    wasActiveRef.current = isActive;
+
     if (
       isActive &&
       !isCommentsOpen &&
