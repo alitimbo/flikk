@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FavoriteService } from "@/services/firebase/favorite-service";
 import { PublicationService } from "@/services/firebase/publication-service";
@@ -19,6 +19,12 @@ export function useFavoritePublications(uid: string | undefined) {
     },
     enabled: !!uid,
   });
+
+  useEffect(() => {
+    if (query.error) {
+      console.log("[useFavoritePublications] error:", { uid, error: query.error });
+    }
+  }, [query.error, uid]);
 
   const publications = useMemo(
     () => query.data?.publications ?? [],

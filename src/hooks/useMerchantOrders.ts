@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { FirebaseFirestoreTypes } from "@react-native-firebase/firestore";
 import { OrderService } from "@/services/firebase/order-service";
@@ -9,7 +10,7 @@ type OrdersPage = {
 };
 
 export function useMerchantOrders(merchantId?: string | null) {
-  return useInfiniteQuery({
+  const query = useInfiniteQuery({
     queryKey: ["merchantOrders", merchantId],
     initialPageParam: null as FirebaseFirestoreTypes.QueryDocumentSnapshot | null,
     queryFn: ({ pageParam }) =>
@@ -21,4 +22,15 @@ export function useMerchantOrders(merchantId?: string | null) {
       lastPage.lastDoc ?? undefined,
     enabled: !!merchantId,
   });
+
+  useEffect(() => {
+    if (query.error) {
+      console.log("[useMerchantOrders] error:", {
+        merchantId,
+        error: query.error,
+      });
+    }
+  }, [query.error, merchantId]);
+
+  return query;
 }

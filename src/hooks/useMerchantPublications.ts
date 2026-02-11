@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { PublicationService } from "@/services/firebase/publication-service";
 import { Publication } from "@/types";
@@ -24,6 +24,12 @@ export function useMerchantPublications(userId: string | undefined) {
     getNextPageParam: (lastPage: MerchantPage) =>
       lastPage.lastDoc ?? undefined,
   });
+
+  useEffect(() => {
+    if (query.error) {
+      console.log("[useMerchantPublications] error:", { userId, error: query.error });
+    }
+  }, [query.error, userId]);
 
   const publications = useMemo(
     () => query.data?.pages.flatMap((page) => page.publications) ?? [],

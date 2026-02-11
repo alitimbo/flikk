@@ -17,6 +17,7 @@ import { useMerchantOrders } from "@/hooks/useMerchantOrders";
 import type { Order } from "@/types";
 import { SkeletonBlock } from "@/components/ui/Skeleton";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { resolveOrderStatus } from "@/utils/order-status";
 
 export function MerchantOrdersScreen() {
   const { t } = useTranslation();
@@ -159,7 +160,7 @@ function MerchantOrderCard({
   onPress?: () => void;
 }) {
   const { t } = useTranslation();
-  const status = order.status || order.paymentStatus || "pending";
+  const status = resolveOrderStatus(order);
   const statusLabel =
     status === "paid"
       ? t("orders.statusPaid")
@@ -189,9 +190,6 @@ function MerchantOrderCard({
         </Text>
         <Text className="mt-1 text-sm text-flikk-lime">
           {(order.amount ?? 0).toLocaleString()} {order.currency ?? "XOF"}
-        </Text>
-        <Text className="mt-1 text-xs text-flikk-text-muted" numberOfLines={1}>
-          {order.customerName || "-"}
         </Text>
         <Text className="mt-1 text-xs text-flikk-text-muted" numberOfLines={1}>
           {t("orders.orderNumber")}: {order.orderNumber || "-"}

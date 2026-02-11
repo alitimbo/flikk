@@ -9,6 +9,7 @@ import { useFocusEffect } from "expo-router";
 import { SkeletonFeedItem } from "@/components/ui/Skeleton";
 import { getAuth, onAuthStateChanged } from "@react-native-firebase/auth";
 import { useFavorites } from "@/hooks/useFavorites";
+import { useCart } from "@/hooks/useCart";
 
 const TAB_BAR_HEIGHT = 72;
 const AUTO_ADVANCE_IDLE_MS = 3000;
@@ -66,6 +67,12 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
     authUid,
     publicationIds,
   );
+  const {
+    count: cartCount,
+    inCartSet,
+    addToCart,
+    isMutating: isCartMutating,
+  } = useCart(authUid);
 
   const onRefresh = useCallback(() => {
     void refetch();
@@ -147,6 +154,10 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
           }}
           onCommentsOpenChange={(isOpen) => setIsScrollLocked(isOpen)}
           onPaymentOpenChange={(isOpen) => setIsScrollLocked(isOpen)}
+          cartCount={cartCount}
+          isInCart={inCartSet.has(item.id ?? "")}
+          isAddToCartPending={isCartMutating}
+          onAddToCart={() => addToCart(item)}
         />
       </View>
     ),
@@ -158,6 +169,10 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
       isFetchingNextPage,
       fetchNextPage,
       setIsScrollLocked,
+      cartCount,
+      inCartSet,
+      isCartMutating,
+      addToCart,
     ],
   );
 

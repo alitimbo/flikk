@@ -15,6 +15,7 @@ import { useOrders } from "@/hooks/useOrders";
 import type { Order } from "@/types";
 import { SkeletonBlock } from "@/components/ui/Skeleton";
 import { useRouter } from "expo-router";
+import { resolveOrderStatus } from "@/utils/order-status";
 
 export function OrdersScreen() {
   const { t } = useTranslation();
@@ -123,16 +124,20 @@ export function OrdersScreen() {
 
 function OrderCard({ order, onPress }: { order: Order; onPress?: () => void }) {
   const { t } = useTranslation();
-  const status = order.status || order.paymentStatus || "pending";
+  const status = resolveOrderStatus(order);
   const statusLabel =
     status === "paid"
       ? t("orders.statusPaid")
+      : status === "delivered" || status === "shipped" || status === "shipping"
+        ? t("orders.statusDelivered")
       : status === "failed"
         ? t("orders.statusFailed")
         : t("orders.statusPending");
   const statusClass =
     status === "paid"
       ? "bg-flikk-lime/15 text-flikk-lime"
+      : status === "delivered" || status === "shipped" || status === "shipping"
+        ? "bg-blue-500/15 text-blue-300"
       : status === "failed"
         ? "bg-red-500/15 text-red-400"
         : "bg-white/10 text-flikk-text-muted";

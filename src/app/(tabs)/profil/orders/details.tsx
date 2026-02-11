@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { useOrderById } from "@/hooks/useOrderById";
+import { resolveOrderStatus } from "@/utils/order-status";
 
 export default function MerchantOrderDetailsScreen() {
   const { t } = useTranslation();
@@ -28,7 +29,7 @@ export default function MerchantOrderDetailsScreen() {
     );
   }
 
-  const status = order.status || order.paymentStatus || "pending";
+  const status = resolveOrderStatus(order);
   const statusLabel =
     status === "paid"
       ? t("orders.statusPaid")
@@ -92,7 +93,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <View className="flex-row items-start rounded-2xl border border-white/10 bg-flikk-card px-4 py-3">
       <Text className="w-28 text-xs text-flikk-text-muted">{label}</Text>
-      <Text className="ml-3 flex-1 text-right text-xs text-flikk-text">{value}</Text>
+      <Text className="ml-3 flex-1 text-xs text-flikk-text">{value}</Text>
     </View>
   );
 }

@@ -269,5 +269,25 @@
     "detailCustomer": "Client",
     "detailPhone": "Telephone",
     "detailMerchant": "Vendeur"
+  },
+  "cart": {
+    "title": "Panier",
+    "auth": "Connecte-toi pour acceder a ton panier.",
+    "empty": "Ton panier est vide",
+    "unknownMerchant": "Marchand",
+    "unavailable": "Indisponible pour le moment",
+    "unavailableCount": "{{count}} article(s) indisponible(s) non inclus",
+    "totalItems": "{{count}} article(s)",
+    "remove": "Retirer",
+    "checkout": "Valider la commande",
+    "goToOrders": "Voir mes achats",
+    "checkoutSuccessTitle": "Commande enregistree",
+    "checkoutSuccessBody": "{{count}} commande(s) ont ete creees et restent en attente de confirmation.",
+    "checkoutErrorTitle": "Echec de validation",
+    "checkoutErrorBody": "Impossible de valider le panier pour le moment.",
+    "addedTitle": "Ajoute au panier",
+    "addedBody": "Le produit a ete ajoute a votre panier.",
+    "addErrorTitle": "Ajout impossible",
+    "addErrorBody": "Impossible d'ajouter ce produit pour le moment."
   }
 }

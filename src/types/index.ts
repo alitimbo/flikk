@@ -140,3 +140,25 @@ export interface Order {
   createdAt?: any;
   updatedAt?: any;
 }
+
+export interface CartItem {
+  publicationId: string;
+  merchantId: string;
+  merchantName?: string | null;
+  merchantLogoUrl?: string | null;
+  productName: string;
+  imageUrl: string;
+  priceAtAdd: number;
+  currency?: string;
+  quantity: number;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+export interface CartResolvedItem extends CartItem {
+  livePrice: number;
+  liveProductName: string;
+  liveImageUrl: string;
+  isPriceChanged: boolean;
+  isUnavailable: boolean;
+}

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FollowService } from "@/services/firebase/follow-service";
 import { OrderService } from "@/services/firebase/order-service";
@@ -54,6 +54,34 @@ export function useMerchantEngagement(
     followerCountQuery.isLoading ||
     orderCountQuery.isLoading ||
     isFollowingQuery.isLoading;
+
+  useEffect(() => {
+    if (followerCountQuery.error) {
+      console.log("[useMerchantEngagement] followerCount error:", {
+        merchantId,
+        error: followerCountQuery.error,
+      });
+    }
+    if (orderCountQuery.error) {
+      console.log("[useMerchantEngagement] orderCount error:", {
+        merchantId,
+        error: orderCountQuery.error,
+      });
+    }
+    if (isFollowingQuery.error) {
+      console.log("[useMerchantEngagement] isFollowing error:", {
+        merchantId,
+        viewerId,
+        error: isFollowingQuery.error,
+      });
+    }
+  }, [
+    followerCountQuery.error,
+    orderCountQuery.error,
+    isFollowingQuery.error,
+    merchantId,
+    viewerId,
+  ]);
 
   return useMemo(
     () => ({

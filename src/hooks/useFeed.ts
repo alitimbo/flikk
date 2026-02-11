@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { PublicationService } from "@/services/firebase/publication-service";
 import { Publication } from "@/types";
@@ -18,6 +18,12 @@ export function useFeed() {
     getNextPageParam: (lastPage: FeedPage) =>
       lastPage.lastDoc ?? undefined,
   });
+
+  useEffect(() => {
+    if (query.error) {
+      console.log("[useFeed] error:", query.error);
+    }
+  }, [query.error]);
 
   const publications = useMemo(
     () => query.data?.pages.flatMap((page) => page.publications) ?? [],

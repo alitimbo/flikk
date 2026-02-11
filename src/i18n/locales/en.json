@@ -269,5 +269,25 @@
     "detailCustomer": "Customer",
     "detailPhone": "Phone",
     "detailMerchant": "Merchant"
+  },
+  "cart": {
+    "title": "Cart",
+    "auth": "Sign in to access your cart.",
+    "empty": "Your cart is empty",
+    "unknownMerchant": "Merchant",
+    "unavailable": "Currently unavailable",
+    "unavailableCount": "{{count}} unavailable item(s) excluded",
+    "totalItems": "{{count}} item(s)",
+    "remove": "Remove",
+    "checkout": "Validate order",
+    "goToOrders": "View my purchases",
+    "checkoutSuccessTitle": "Order created",
+    "checkoutSuccessBody": "{{count}} order(s) were created and are pending confirmation.",
+    "checkoutErrorTitle": "Validation failed",
+    "checkoutErrorBody": "Unable to validate your cart right now.",
+    "addedTitle": "Added to cart",
+    "addedBody": "Product added to your cart.",
+    "addErrorTitle": "Unable to add",
+    "addErrorBody": "Unable to add this product right now."
   }
 }

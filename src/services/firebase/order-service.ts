@@ -12,6 +12,7 @@ import {
   FirebaseFirestoreTypes,
 } from "@react-native-firebase/firestore";
 import type { Order } from "@/types";
+import { resolveOrderStatus } from "@/utils/order-status";
 
 type OrdersPage = {
   orders: Order[];
@@ -21,7 +22,7 @@ type OrdersPage = {
 export class OrderService {
   private static collection = collection(FirebaseService.db, "orders");
   private static shouldShowForMerchant(order: Order): boolean {
-    const effectiveStatus = order.status ?? order.paymentStatus ?? "pending";
+    const effectiveStatus = resolveOrderStatus(order);
     return effectiveStatus !== "pending";
   }
 

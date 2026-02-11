@@ -37,6 +37,7 @@ import { PaymentService } from "@/services/firebase/payment-service";
 import { usePaymentStatus } from "@/hooks/usePaymentStatus";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import type { PaymentStatus } from "@/types";
+import Toast from "react-native-toast-message";
 
 interface FeedItemProps {
   publication: Publication;
@@ -49,6 +50,10 @@ interface FeedItemProps {
   onUserAction?: () => void;
   onCommentsOpenChange?: (isOpen: boolean) => void;
   onPaymentOpenChange?: (isOpen: boolean) => void;
+  onAddToCart?: () => Promise<void> | void;
+  isInCart?: boolean;
+  isAddToCartPending?: boolean;
+  cartCount?: number;
 }
 
 const { height } = Dimensions.get("window");
@@ -64,6 +69,10 @@ export function FeedItem({
   onUserAction,
   onCommentsOpenChange,
   onPaymentOpenChange,
+  onAddToCart,
+  isInCart,
+  isAddToCartPending,
+  cartCount = 0,
 }: FeedItemProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -368,6 +377,62 @@ export function FeedItem({
     onCommentsOpenChange?.(true);
   }, [onUserAction, onCommentsOpenChange]);
 
+  const handleAddToCart = useCallback(async () => {
+    const user = getAuth().currentUser;
+    if (!user) {
+      openAuthRequired();
+      return;
+    }
+    try {
+      await onAddToCart?.();
+      Toast.show({
+        type: "success",
+        position: "top",
+        text1: t("cart.addedTitle"),
+        text2: t("cart.addedBody"),
+        visibilityTime: 1800,
+        topOffset: 52,
+      });
+    } catch (error) {
+      console.log("[FeedItem] addToCart error:", {
+        publicationId: publication.id,
+        uid: user.uid,
+        error,
+      });
+      const message = String((error as { message?: string })?.message ?? "");
+      if (message.includes("AUTH_REQUIRED")) {
+        openAuthRequired();
+        return;
+      }
+      Toast.show({
+        type: "error",
+        position: "top",
+        text1: t("cart.addErrorTitle"),
+        text2: t("cart.addErrorBody"),
+        visibilityTime: 2000,
+        topOffset: 52,
+      });
+    }
+  }, [onAddToCart, openAuthRequired, publication.id, t]);
+
+  const openCartScreen = useCallback(() => {
+    const user = getAuth().currentUser;
+    if (!user) {
+      openAuthRequired();
+      return;
+    }
+    try {
+      router.push("/(tabs)/purchase/cart");
+    } catch (error) {
+      console.log("[FeedItem] openCart primary route error:", error);
+      try {
+        router.push("/purchase/cart");
+      } catch (fallbackError) {
+        console.log("[FeedItem] openCart fallback route error:", fallbackError);
+      }
+    }
+  }, [openAuthRequired, router]);
+
   const closePaymentSheet = useCallback(() => {
     setIsPaymentOpen(false);
     setSheetTranslateY(0);
@@ -496,13 +561,30 @@ export function FeedItem({
         </Text>
       </View>
 
+      <Pressable
+        className="absolute left-4 h-10 w-10 items-center justify-center rounded-full bg-black/45 border border-white/15"
+        style={{ top: insets.top + 10, zIndex: 30, elevation: 30 }}
+        onPress={openCartScreen}
+      >
+        <Ionicons name="cart-outline" size={18} color="#FFFFFF" />
+        {cartCount > 0 ? (
+          <View className="absolute -right-1 -top-1 min-w-[16px] h-4 rounded-full bg-flikk-lime items-center justify-center px-1">
+            <Text className="text-[9px] font-semibold text-flikk-dark">
+              {cartCount > 99 ? "99+" : cartCount}
+            </Text>
+          </View>
+        ) : null}
+      </Pressable>
+
       {/* OVERLAY GRADIENTS */}
       <LinearGradient
+        pointerEvents="none"
         colors={["transparent", "rgba(0,0,0,0.8)"]}
         style={styles.bottomGradient}
       />
 
       <LinearGradient
+        pointerEvents="none"
         colors={["rgba(0,0,0,0.4)", "transparent"]}
         style={styles.topGradient}
       />
@@ -582,14 +664,29 @@ export function FeedItem({
               </View>
             </View>
 
-            <Pressable
-              className="h-11 bg-flikk-lime rounded-full flex-row items-center justify-center active:scale-[0.98]"
-              onPress={openPaymentSheet}
-            >
-              <Text className="text-flikk-dark font-display text-[15px] font-medium">
-                {t("feed.buyNow")}
-              </Text>
-            </Pressable>
+            <View className="flex-row items-center gap-2">
+              <Pressable
+                className="h-11 flex-1 bg-flikk-lime rounded-full flex-row items-center justify-center active:scale-[0.98]"
+                onPress={openPaymentSheet}
+              >
+                <Text className="text-flikk-dark font-display text-[15px] font-medium">
+                  {t("feed.buyNow")}
+                </Text>
+              </Pressable>
+              <Pressable
+                className={`h-11 w-11 rounded-full border items-center justify-center ${
+                  isInCart ? "bg-flikk-lime/20 border-flikk-lime" : "bg-white/10 border-white/20"
+                } ${isAddToCartPending ? "opacity-50" : ""}`}
+                onPress={handleAddToCart}
+                disabled={isAddToCartPending}
+              >
+                <Ionicons
+                  name={isInCart ? "checkmark" : "cart-outline"}
+                  size={18}
+                  color={isInCart ? "#CCFF00" : "#FFFFFF"}
+                />
+              </Pressable>
+            </View>
 
             <View className="mt-3 flex-row items-center justify-center">
               <Pressable
@@ -602,7 +699,7 @@ export function FeedItem({
                   {t("payment.guaranteeLink")}
                 </Text>
               </Pressable>
-              <Text className="mx-2 text-[11px] text-flikk-text-muted">•</Text>
+              <Text className="mx-2 text-[11px] text-flikk-text-muted">.</Text>
               <Pressable
                 onPress={() => {
                   onUserAction?.();
