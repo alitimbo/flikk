@@ -12,6 +12,8 @@ import { CustomSplash } from "@/components/features/custom-splash";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import Toast from "react-native-toast-message";
+import { useNotificationToast } from "@/hooks/useNotificationToast";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +25,7 @@ export default function RootLayout() {
   });
 
   useAppTheme();
+  useNotificationToast();
   useEffect(() => {
     void FirebaseService.init();
   }, []);
@@ -45,6 +48,7 @@ export default function RootLayout() {
         <SafeAreaProvider>
           <View className="flex-1">
             <Stack screenOptions={{ headerShown: false }} />
+            <Toast />
             {showSplash && (
               <CustomSplash onFinish={() => setShowSplash(false)} />
             )}

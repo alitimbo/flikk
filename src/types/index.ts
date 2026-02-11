@@ -1,5 +1,6 @@
 export type UserRole = "merchant" | "customer";
 export type UserStatus = "active" | "inactive";
+export type AppLanguage = "fr" | "en";
 
 export interface UserMerchantInfo {
   businessName: string;
@@ -29,9 +30,21 @@ export interface UserProfile {
   status: UserStatus;
   isMerchant: boolean; // Kept for backward compatibility, but synced with role
   followerCount?: number;
+  notificationLanguage?: AppLanguage;
   merchantInfo?: UserMerchantInfo;
   createdAt?: any;
   updatedAt?: any;
+}
+
+export interface NotificationDevice {
+  uid: string;
+  deviceId: string;
+  fcmToken?: string | null;
+  language?: AppLanguage;
+  platform?: "ios" | "android" | "web";
+  createdAt?: any;
+  updatedAt?: any;
+  lastSeenAt?: any;
 }
 
 export interface Publication {
