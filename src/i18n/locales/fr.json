@@ -161,6 +161,12 @@
     "inputHashtags": "Hashtags (#tag1 #tag2)",
     "pickPhoto": "Photo de l'article",
     "pickVideo": "Vidéo commerciale",
+    "videoTooLargeTitle": "Vidéo trop lourde",
+    "videoTooLargeBody": "La vidéo dépasse 200 Mo. Veuillez choisir une vidéo plus légère.",
+    "publishSuccessTitle": "Publication envoyée",
+    "publishSuccessBody": "Votre publication est en traitement et sera bientôt visible.",
+    "publishErrorTitle": "Échec de publication",
+    "publishErrorBody": "Impossible de publier pour le moment. Veuillez réessayer.",
     "publish": "Publier maintenant",
     "auth": {
       "title": "Connecte-toi pour publier",

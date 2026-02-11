@@ -18,7 +18,11 @@ import { Ionicons } from "@expo/vector-icons";
 interface MediaPickerProps {
   isVisible: boolean;
   onClose: () => void;
-  onSelect: (uri: string, type: MediaLibrary.MediaTypeValue) => void;
+  onSelect: (
+    uri: string,
+    type: MediaLibrary.MediaTypeValue,
+    meta?: { fileSize?: number },
+  ) => void;
   mediaTypes?: MediaLibrary.MediaTypeValue[];
 }
 
@@ -277,8 +281,23 @@ export function MediaPicker({
                 </Pressable>
 
                 <Pressable
-                  onPress={() => {
-                    onSelect(selectedAsset.uri, selectedAsset.mediaType);
+                  onPress={async () => {
+                    let fileSize = selectedAsset.fileSize;
+                    if (!fileSize) {
+                      try {
+                        const info = await MediaLibrary.getAssetInfoAsync(selectedAsset);
+                        fileSize =
+                          typeof (info as { fileSize?: number }).fileSize === "number"
+                            ? (info as { fileSize?: number }).fileSize
+                            : undefined;
+                      } catch {
+                        // Ignore and continue without file size.
+                      }
+                    }
+
+                    onSelect(selectedAsset.uri, selectedAsset.mediaType, {
+                      fileSize,
+                    });
                     onClose();
                   }}
                   className="bg-[#CCFF00] px-6 py-2 rounded-full flex-row items-center"

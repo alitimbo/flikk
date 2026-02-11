@@ -23,6 +23,11 @@ import type { FirebaseAuthTypes } from "@react-native-firebase/auth";
 import { FirebaseService } from "@/services/firebase/firebase-service";
 import { useRouter } from "expo-router";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import Toast from "react-native-toast-message";
+import { useVideoPlayer } from "expo-video";
+
+const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
+const PUBLISH_SUCCESS_SOUND = require("@/assets/sounds/publish-success.mp3");
 
 export default function ActionIndex() {
   const { t } = useTranslation();
@@ -41,6 +46,12 @@ export default function ActionIndex() {
   // --- ÉTATS DU PICKER ---
   const [pickerMode, setPickerMode] = useState<"photo" | "video" | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
+  const successSoundPlayer = useVideoPlayer(PUBLISH_SUCCESS_SOUND, (p) => {
+    p.loop = false;
+    p.muted = false;
+    p.audioMixingMode = "auto";
+    p.staysActiveInBackground = false;
+  });
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(FirebaseService.auth, (user) => {
@@ -116,8 +127,29 @@ export default function ActionIndex() {
       setHashtags("");
       setItemPhoto(null);
       setCommercialVideo(null);
+      Toast.show({
+        type: "success",
+        position: "top",
+        text1: t("action.publishSuccessTitle"),
+        text2: t("action.publishSuccessBody"),
+        visibilityTime: 2800,
+        topOffset: 52,
+      });
+      try {
+        successSoundPlayer.replay();
+      } catch {
+        // No-op if sound cannot play on this device/session.
+      }
     } catch (error) {
       console.error("Error publishing:", error);
+      Toast.show({
+        type: "error",
+        position: "top",
+        text1: t("action.publishErrorTitle"),
+        text2: t("action.publishErrorBody"),
+        visibilityTime: 3000,
+        topOffset: 52,
+      });
     } finally {
       setIsPublishing(false);
     }
@@ -129,6 +161,8 @@ export default function ActionIndex() {
     itemPhoto,
     commercialVideo,
     userProfile,
+    t,
+    successSoundPlayer,
   ]);
 
   if (!authUser) {
@@ -236,6 +270,7 @@ export default function ActionIndex() {
                     <Ionicons name="image-outline" size={32} color="#666666" />
                     <Text className="text-[10px] uppercase font-bold text-flikk-text-muted mt-2 tracking-widest text-center px-2">
                       {t("action.pickPhoto")}
+                      <Text className="text-[#FF4D6D]"> *</Text>
                     </Text>
                   </View>
                 )}
@@ -261,6 +296,9 @@ export default function ActionIndex() {
                     className={`text-[10px] uppercase font-bold mt-2 tracking-widest text-center px-2 ${commercialVideo ? "text-flikk-lime" : "text-flikk-text-muted"}`}
                   >
                     {commercialVideo ? "VIDÉO OK" : t("action.pickVideo")}
+                    {!commercialVideo ? (
+                      <Text className="text-[#FF4D6D]"> *</Text>
+                    ) : null}
                   </Text>
                 </View>
                 {commercialVideo && (
@@ -277,6 +315,7 @@ export default function ActionIndex() {
               <View>
                 <Text className="text-sm font-bold text-flikk-text-muted mb-3 uppercase tracking-widest pl-1">
                   {t("action.inputProductName")}
+                  <Text className="text-[#FF4D6D]"> *</Text>
                 </Text>
                 <TextInput
                   className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
@@ -292,6 +331,7 @@ export default function ActionIndex() {
               <View>
                 <Text className="text-sm font-bold text-flikk-text-muted mb-3 uppercase tracking-widest pl-1">
                   {t("action.inputTitle")}
+                  <Text className="text-[#FF4D6D]"> *</Text>
                 </Text>
                 <TextInput
                   className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
@@ -307,6 +347,7 @@ export default function ActionIndex() {
               <View>
                 <Text className="text-sm font-bold text-flikk-text-muted mb-3 uppercase tracking-widest pl-1">
                   {t("action.inputPrice")}
+                  <Text className="text-[#FF4D6D]"> *</Text>
                 </Text>
                 <View className="flex-row items-center h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4">
                   <TextInput
@@ -383,10 +424,24 @@ export default function ActionIndex() {
         isVisible={!!pickerMode}
         onClose={() => setPickerMode(null)}
         mediaTypes={pickerMode === "photo" ? ["photo"] : ["video"]}
-        onSelect={(uri, type) => {
+        onSelect={async (uri, type, meta) => {
           if (pickerMode === "photo") {
             setItemPhoto(uri);
           } else {
+            const videoSize = meta?.fileSize ?? 0;
+            if (videoSize > MAX_VIDEO_BYTES) {
+              Toast.show({
+                type: "error",
+                position: "top",
+                text1: t("action.videoTooLargeTitle"),
+                text2: t("action.videoTooLargeBody"),
+                visibilityTime: 3000,
+                topOffset: 52,
+              });
+              setPickerMode(null);
+              return;
+            }
+
             setCommercialVideo(uri);
           }
           setPickerMode(null);
