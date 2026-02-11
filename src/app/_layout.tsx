@@ -19,6 +19,8 @@ const queryClient = new QueryClient();
 
 export default function RootLayout() {
   const [showSplash, setShowSplash] = useState(true);
+  const [isFirebaseReady, setIsFirebaseReady] = useState(false);
+  const [firebaseInitError, setFirebaseInitError] = useState<Error | null>(null);
   const [fontsLoaded] = useFonts({
     "Inter-Variable": require("@/assets/fonts/Inter-VariableFont_opsz,wght.ttf"),
     "Syne-Variable": require("@/assets/fonts/Syne-VariableFont_wght.ttf"),
@@ -26,22 +28,31 @@ export default function RootLayout() {
 
   useAppTheme();
   useNotificationToast();
+
   useEffect(() => {
-    void FirebaseService.init();
-  }, []);
-  useEffect(() => {
-    void SplashScreen.preventAutoHideAsync();
+    async function prepare() {
+      try {
+        await SplashScreen.preventAutoHideAsync();
+        await FirebaseService.init();
+        setIsFirebaseReady(true);
+      } catch (error) {
+        console.log("[RootLayout] Firebase init error:", error);
+        setFirebaseInitError(error as Error);
+      }
+    }
+    void prepare();
   }, []);
 
   useEffect(() => {
-    if (fontsLoaded) {
+    if (fontsLoaded && (isFirebaseReady || firebaseInitError)) {
       void SplashScreen.hideAsync();
     }
-  }, [fontsLoaded]);
+  }, [fontsLoaded, isFirebaseReady, firebaseInitError]);
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded || (!isFirebaseReady && !firebaseInitError)) {
     return null;
   }
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
