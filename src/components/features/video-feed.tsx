@@ -11,10 +11,12 @@ import { getAuth, onAuthStateChanged } from "@react-native-firebase/auth";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useCart } from "@/hooks/useCart";
 import { MMKVStorage } from "@/storage/mmkv";
+import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 
 const TAB_BAR_HEIGHT = 72;
 const AUTO_ADVANCE_IDLE_MS = 3000;
 const FEED_PRODUCT_CARD_COLLAPSED_KEY = "feed-product-card-collapsed";
+const FEED_KEEP_AWAKE_TAG = "flikk-feed-screen";
 
 type VideoFeedProps = {
   initialId?: string;
@@ -269,7 +271,9 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
 
   useFocusEffect(
     useCallback(() => {
+      void activateKeepAwakeAsync(FEED_KEEP_AWAKE_TAG);
       return () => {
+        void deactivateKeepAwake(FEED_KEEP_AWAKE_TAG);
         activeIdRef.current = null;
         setActiveId(null);
       };
