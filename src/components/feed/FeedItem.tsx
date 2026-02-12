@@ -61,6 +61,8 @@ interface FeedItemProps {
 
 const { height } = Dimensions.get("window");
 const VIDEO_ASPECT_RATIO = 9 / 16;
+const SQUARE_ASPECT_RATIO = 1;
+const VERTICAL_RATIO_TOLERANCE = 0.04;
 
 export function FeedItem({
   publication,
@@ -118,6 +120,7 @@ export function FeedItem({
   const [sheetTranslateY, setSheetTranslateY] = useState(0);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [isVerticalVideo, setIsVerticalVideo] = useState(true);
   const deviceId = useMemo(() => DeviceService.getDeviceId(), []);
   const wasActiveRef = useRef(false);
   const productCardAnim = useRef(
@@ -128,15 +131,22 @@ export function FeedItem({
     () => publication.hlsUrl || publication.videoUrl,
     [publication.hlsUrl, publication.videoUrl],
   );
+  const targetAspectRatio = isVerticalVideo
+    ? VIDEO_ASPECT_RATIO
+    : SQUARE_ASPECT_RATIO;
+  const videoContentFit: "cover" | "contain" = isVerticalVideo
+    ? "cover"
+    : "contain";
+
   const { videoFrameWidth, videoFrameHeight } = useMemo(() => {
     const containerWidth = Math.max(1, containerSize.width);
     const containerHeight = Math.max(1, containerSize.height);
     const containerRatio = containerWidth / containerHeight;
 
-    if (containerRatio > VIDEO_ASPECT_RATIO) {
+    if (containerRatio > targetAspectRatio) {
       const height = containerHeight;
       return {
-        videoFrameWidth: height * VIDEO_ASPECT_RATIO,
+        videoFrameWidth: height * targetAspectRatio,
         videoFrameHeight: height,
       };
     }
@@ -144,9 +154,9 @@ export function FeedItem({
     const width = containerWidth;
     return {
       videoFrameWidth: width,
-      videoFrameHeight: width / VIDEO_ASPECT_RATIO,
+      videoFrameHeight: width / targetAspectRatio,
     };
-  }, [containerSize.height, containerSize.width]);
+  }, [containerSize.height, containerSize.width, targetAspectRatio]);
 
   const handleContainerLayout = useCallback((event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
@@ -180,6 +190,22 @@ export function FeedItem({
     const sourceSub = player.addListener("sourceLoad", (payload) => {
       setDuration(payload.duration ?? 0);
       setCurrentTime(0);
+      const tracks = payload.availableVideoTracks ?? [];
+      const selectedTrack = tracks
+        .filter((track) => track?.size?.width && track?.size?.height)
+        .sort(
+          (a, b) =>
+            b.size.width * b.size.height - a.size.width * a.size.height,
+        )[0];
+      if (selectedTrack?.size?.width && selectedTrack?.size?.height) {
+        const ratio = selectedTrack.size.width / selectedTrack.size.height;
+        const isVertical =
+          Math.abs(ratio - VIDEO_ASPECT_RATIO) <= VERTICAL_RATIO_TOLERANCE;
+        setIsVerticalVideo(isVertical);
+      } else {
+        // If metadata is not available, keep default vertical behavior.
+        setIsVerticalVideo(true);
+      }
     });
     const endSub = player.addListener("playToEnd", () => {
       if (isActive) {
@@ -605,7 +631,7 @@ export function FeedItem({
           <VideoView
             player={player}
             style={StyleSheet.absoluteFill}
-            contentFit="cover"
+            contentFit={videoContentFit}
             nativeControls={false}
           />
         </View>
