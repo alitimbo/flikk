@@ -24,7 +24,7 @@ import { FirebaseService } from "@/services/firebase/firebase-service";
 import { useRouter } from "expo-router";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import Toast from "react-native-toast-message";
-import { useVideoPlayer } from "expo-video";
+import { useVideoPlayer, VideoView } from "expo-video";
 
 const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
 const PUBLISH_SUCCESS_SOUND = require("@/assets/sounds/publish-success.mp3");
@@ -52,6 +52,36 @@ export default function ActionIndex() {
     p.audioMixingMode = "auto";
     p.staysActiveInBackground = false;
   });
+  const draftVideoPlayer = useVideoPlayer(null, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.staysActiveInBackground = false;
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const syncDraftPreview = async () => {
+      if (!commercialVideo) {
+        draftVideoPlayer.pause();
+        return;
+      }
+      try {
+        await draftVideoPlayer.replaceAsync(commercialVideo);
+        if (isMounted) {
+          draftVideoPlayer.play();
+        }
+      } catch (error) {
+        console.log("[Action] draft preview error:", error);
+      }
+    };
+
+    void syncDraftPreview();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [commercialVideo, draftVideoPlayer]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(FirebaseService.auth, (user) => {
@@ -281,26 +311,31 @@ export default function ActionIndex() {
                 )}
               </Pressable>
 
-              {/* VIDÉO COMMERCIALE */}
+              {/* VIDEO COMMERCIALE */}
               <Pressable
                 onPress={() => setPickerMode("video")}
                 className="flex-1 aspect-square rounded-3xl border border-dashed border-white/20 bg-white/5 overflow-hidden items-center justify-center"
               >
-                <View className="items-center">
-                  <Ionicons
-                    name={commercialVideo ? "videocam" : "videocam-outline"}
-                    size={32}
-                    color={commercialVideo ? "#CCFF00" : "#666666"}
-                  />
-                  <Text
-                    className={`text-[10px] uppercase font-bold mt-2 tracking-widest text-center px-2 ${commercialVideo ? "text-flikk-lime" : "text-flikk-text-muted"}`}
-                  >
-                    {commercialVideo ? "VIDÉO OK" : t("action.pickVideo")}
-                    {!commercialVideo ? (
+                {commercialVideo ? (
+                  <View className="h-full w-full items-center justify-center bg-black">
+                    <View className="h-full w-[56.25%] overflow-hidden bg-black">
+                      <VideoView
+                        player={draftVideoPlayer}
+                        contentFit="cover"
+                        nativeControls={false}
+                        style={{ width: "100%", height: "100%" }}
+                      />
+                    </View>
+                  </View>
+                ) : (
+                  <View className="items-center">
+                    <Ionicons name="videocam-outline" size={32} color="#666666" />
+                    <Text className="text-[10px] uppercase font-bold mt-2 tracking-widest text-center px-2 text-flikk-text-muted">
+                      {t("action.pickVideo")}
                       <Text className="text-[#FF4D6D]"> *</Text>
-                    ) : null}
-                  </Text>
-                </View>
+                    </Text>
+                  </View>
+                )}
                 {commercialVideo && (
                   <View className="absolute bottom-2 right-2 bg-flikk-lime rounded-full p-1">
                     <Ionicons name="play" size={12} color="black" />
@@ -451,3 +486,4 @@ export default function ActionIndex() {
     </KeyboardAvoidingView>
   );
 }
+

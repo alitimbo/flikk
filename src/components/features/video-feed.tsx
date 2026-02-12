@@ -10,9 +10,11 @@ import { SkeletonFeedItem } from "@/components/ui/Skeleton";
 import { getAuth, onAuthStateChanged } from "@react-native-firebase/auth";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useCart } from "@/hooks/useCart";
+import { MMKVStorage } from "@/storage/mmkv";
 
 const TAB_BAR_HEIGHT = 72;
 const AUTO_ADVANCE_IDLE_MS = 3000;
+const FEED_PRODUCT_CARD_COLLAPSED_KEY = "feed-product-card-collapsed";
 
 type VideoFeedProps = {
   initialId?: string;
@@ -35,6 +37,9 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
   } = useFeed();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isScrollLocked, setIsScrollLocked] = useState(false);
+  const [isProductCardCollapsed, setIsProductCardCollapsed] = useState(
+    MMKVStorage.getItem(FEED_PRODUCT_CARD_COLLAPSED_KEY) === "1",
+  );
   const activeIdRef = useRef<string | null>(null);
   const listRef = useRef<FlashList<Publication>>(null);
   const lastInteractionRef = useRef(0);
@@ -77,6 +82,14 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
   const onRefresh = useCallback(() => {
     void refetch();
   }, [refetch]);
+
+  const toggleProductCardCollapsed = useCallback(() => {
+    setIsProductCardCollapsed((current) => {
+      const next = !current;
+      MMKVStorage.setItem(FEED_PRODUCT_CARD_COLLAPSED_KEY, next ? "1" : "0");
+      return next;
+    });
+  }, []);
 
   const setActiveIdSafe = useCallback((nextId: string | null) => {
     if (nextId && activeIdRef.current !== nextId) {
@@ -158,6 +171,8 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
           isInCart={inCartSet.has(item.id ?? "")}
           isAddToCartPending={isCartMutating}
           onAddToCart={() => addToCart(item)}
+          isProductCardCollapsed={isProductCardCollapsed}
+          onToggleProductCard={toggleProductCardCollapsed}
         />
       </View>
     ),
@@ -173,6 +188,8 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
       inCartSet,
       isCartMutating,
       addToCart,
+      isProductCardCollapsed,
+      toggleProductCardCollapsed,
     ],
   );
 

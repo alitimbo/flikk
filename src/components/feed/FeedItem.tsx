@@ -9,6 +9,7 @@ import {
   View,
   Text,
   Dimensions,
+  LayoutChangeEvent,
   Pressable,
   StyleSheet,
   Image,
@@ -54,9 +55,12 @@ interface FeedItemProps {
   isInCart?: boolean;
   isAddToCartPending?: boolean;
   cartCount?: number;
+  isProductCardCollapsed?: boolean;
+  onToggleProductCard?: () => void;
 }
 
 const { height } = Dimensions.get("window");
+const VIDEO_ASPECT_RATIO = 9 / 16;
 
 export function FeedItem({
   publication,
@@ -73,10 +77,16 @@ export function FeedItem({
   isInCart,
   isAddToCartPending,
   cartCount = 0,
+  isProductCardCollapsed = false,
+  onToggleProductCard,
 }: FeedItemProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const [containerSize, setContainerSize] = useState({
+    width: Dimensions.get("window").width,
+    height: Dimensions.get("window").height,
+  });
   const [viewTracked, setViewTracked] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [duration, setDuration] = useState(0);
@@ -110,11 +120,43 @@ export function FeedItem({
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const deviceId = useMemo(() => DeviceService.getDeviceId(), []);
   const wasActiveRef = useRef(false);
+  const productCardAnim = useRef(
+    new Animated.Value(isProductCardCollapsed ? 0 : 1),
+  ).current;
 
   const videoUri = useMemo(
     () => publication.hlsUrl || publication.videoUrl,
     [publication.hlsUrl, publication.videoUrl],
   );
+  const { videoFrameWidth, videoFrameHeight } = useMemo(() => {
+    const containerWidth = Math.max(1, containerSize.width);
+    const containerHeight = Math.max(1, containerSize.height);
+    const containerRatio = containerWidth / containerHeight;
+
+    if (containerRatio > VIDEO_ASPECT_RATIO) {
+      const height = containerHeight;
+      return {
+        videoFrameWidth: height * VIDEO_ASPECT_RATIO,
+        videoFrameHeight: height,
+      };
+    }
+
+    const width = containerWidth;
+    return {
+      videoFrameWidth: width,
+      videoFrameHeight: width / VIDEO_ASPECT_RATIO,
+    };
+  }, [containerSize.height, containerSize.width]);
+
+  const handleContainerLayout = useCallback((event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    if (width <= 0 || height <= 0) return;
+    setContainerSize((prev) =>
+      prev.width === width && prev.height === height
+        ? prev
+        : { width, height },
+    );
+  }, []);
 
   const player = useVideoPlayer(null, (p) => {
     p.loop = true;
@@ -252,6 +294,14 @@ export function FeedItem({
 
     updateSource();
   }, [videoUri, player]);
+
+  useEffect(() => {
+    Animated.timing(productCardAnim, {
+      toValue: isProductCardCollapsed ? 0 : 1,
+      duration: 180,
+      useNativeDriver: false,
+    }).start();
+  }, [isProductCardCollapsed, productCardAnim]);
 
   useEffect(() => {
     const isInfoOpen = isGuaranteeOpen || isDeliveryOpen;
@@ -539,14 +589,27 @@ export function FeedItem({
   );
 
   return (
-    <View style={{ width: "100%", height: "100%" }} className="bg-flikk-dark">
+    <View
+      style={{ width: "100%", height: "100%" }}
+      className="bg-flikk-dark"
+      onLayout={handleContainerLayout}
+    >
       {/* VIDEO BACKGROUND */}
-      <VideoView
-        player={player}
-        style={StyleSheet.absoluteFill}
-        contentFit="cover"
-        nativeControls={false}
-      />
+      <View style={styles.videoContainer}>
+        <View
+          style={[
+            styles.videoFrame,
+            { width: videoFrameWidth, height: videoFrameHeight },
+          ]}
+        >
+          <VideoView
+            player={player}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            nativeControls={false}
+          />
+        </View>
+      </View>
 
       <Pressable onPress={togglePlayback} className="absolute inset-0" />
 
@@ -648,32 +711,66 @@ export function FeedItem({
 
           {/* PRODUCT CARD */}
           <View className="bg-flikk-card border border-white/10 rounded-2xl p-4 shadow-2xl overflow-hidden">
-            <View className="flex-row items-center gap-4 mb-3">
+            <View className="mb-2 flex-row items-center justify-between">
+              <Text className="text-[11px] uppercase tracking-widest text-flikk-text-muted">
+                {isProductCardCollapsed ? "Actions" : "Produit"}
+              </Text>
               <Pressable
-                className="h-14 w-14 rounded-xl overflow-hidden bg-white/5"
+                className="h-7 w-7 items-center justify-center rounded-full bg-white/10"
                 onPress={() => {
                   onUserAction?.();
-                  setIsImagePreviewOpen(true);
+                  onToggleProductCard?.();
                 }}
               >
-                <Image
-                  source={{ uri: publication.imageUrl }}
-                  style={StyleSheet.absoluteFill}
-                  resizeMode="cover"
+                <Ionicons
+                  name={isProductCardCollapsed ? "chevron-down" : "chevron-up"}
+                  size={16}
+                  color="#FFFFFF"
                 />
               </Pressable>
-              <View className="flex-1">
-                <Text
-                  className="text-white font-display text-base mb-0.5 font-normal"
-                  numberOfLines={1}
-                >
-                  {publication.productName}
-                </Text>
-                <Text className="text-flikk-lime font-medium text-base">
-                  {publication.price.toLocaleString()} FCFA
-                </Text>
-              </View>
             </View>
+
+            <Animated.View
+              style={{
+                opacity: productCardAnim,
+                height: productCardAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 70],
+                }),
+                marginBottom: productCardAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 12],
+                }),
+                overflow: "hidden",
+              }}
+            >
+              <View className="flex-row items-center gap-4">
+                <Pressable
+                  className="h-14 w-14 rounded-xl overflow-hidden bg-white/5"
+                  onPress={() => {
+                    onUserAction?.();
+                    setIsImagePreviewOpen(true);
+                  }}
+                >
+                  <Image
+                    source={{ uri: publication.imageUrl }}
+                    style={StyleSheet.absoluteFill}
+                    resizeMode="cover"
+                  />
+                </Pressable>
+                <View className="flex-1">
+                  <Text
+                    className="text-white font-display text-base mb-0.5 font-normal"
+                    numberOfLines={1}
+                  >
+                    {publication.productName}
+                  </Text>
+                  <Text className="text-flikk-lime font-medium text-base">
+                    {publication.price.toLocaleString()} FCFA
+                  </Text>
+                </View>
+              </View>
+            </Animated.View>
 
             <View className="flex-row items-center gap-2">
               <Pressable
@@ -699,7 +796,18 @@ export function FeedItem({
               </Pressable>
             </View>
 
-            <View className="mt-3 flex-row items-center justify-center">
+            <Animated.View
+              style={{
+                opacity: productCardAnim,
+                height: productCardAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 20],
+                }),
+                overflow: "hidden",
+                justifyContent: "center",
+              }}
+              className="mt-3 flex-row items-center"
+            >
               <Pressable
                 onPress={() => {
                   onUserAction?.();
@@ -721,7 +829,7 @@ export function FeedItem({
                   {t("payment.deliveryLink")}
                 </Text>
               </Pressable>
-            </View>
+            </Animated.View>
           </View>
         </View>
 
@@ -1068,6 +1176,16 @@ export function FeedItem({
 }
 
 const styles = StyleSheet.create({
+  videoContainer: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#000000",
+  },
+  videoFrame: {
+    overflow: "hidden",
+    backgroundColor: "#000000",
+  },
   bottomGradient: {
     position: "absolute",
     left: 0,

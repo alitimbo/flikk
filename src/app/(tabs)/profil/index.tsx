@@ -308,14 +308,14 @@ export default function ProfilIndex() {
                   autoCapitalize="none"
                 />
 
-                <View className="mt-4 flex-row items-center justify-between rounded-2xl border border-white/10 bg-flikk-card p-4">
-                  <Text className="font-display text-base text-flikk-text">
+                <View className="mt-4 flex-row items-center justify-between rounded-2xl border border-white/20 bg-white p-4">
+                  <Text className="font-display text-base text-[#121212]">
                     {t("profile.completion.isMerchant")}
                   </Text>
                   <Switch
                     value={isMerchant}
                     onValueChange={setIsMerchant}
-                    trackColor={{ false: "#1E1E1E", true: "#CCFF00" }}
+                    trackColor={{ false: "#D1D5DB", true: "#CCFF00" }}
                     thumbColor={isMerchant ? "#121212" : "#B3B3B3"}
                   />
                 </View>
@@ -367,17 +367,6 @@ export default function ProfilIndex() {
                     />
 
                     <Text className="text-sm font-bold text-flikk-text-muted mb-1 uppercase tracking-widest pl-1">
-                      {t("profile.completion.taxId")}
-                    </Text>
-                    <TextInput
-                      className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
-                      placeholder={t("profile.completion.taxId")}
-                      placeholderTextColor="#666666"
-                      value={taxId}
-                      onChangeText={setTaxId}
-                    />
-
-                    <Text className="text-sm font-bold text-flikk-text-muted mb-1 uppercase tracking-widest pl-1">
                       {t("profile.completion.address")}
                       <Text className="text-[#FF4D6D]"> *</Text>
                     </Text>
@@ -402,6 +391,20 @@ export default function ProfilIndex() {
                       keyboardType="phone-pad"
                     />
 
+                    <Text className="text-sm font-bold text-flikk-text-muted mb-1 uppercase tracking-widest pl-1">
+                      {t("profile.completion.taxId")}
+                    </Text>
+                    <Text className="text-xs text-flikk-text-muted mb-1 pl-1">
+                      {t("profile.completion.taxIdOptional")}
+                    </Text>
+                    <TextInput
+                      className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
+                      placeholder={t("profile.completion.taxId")}
+                      placeholderTextColor="#666666"
+                      value={taxId}
+                      onChangeText={setTaxId}
+                    />
+
                     <View className="mt-2">
                       <Text className="text-sm font-bold text-flikk-text-muted mb-2 uppercase tracking-widest pl-1">
                         {t("profile.completion.withdrawalMethod")}
@@ -413,10 +416,19 @@ export default function ProfilIndex() {
                       <View className="gap-2">
                         {[
                           { key: "nita", label: t("profile.completion.nita") },
-                          { key: "amana", label: t("profile.completion.amana") },
+                          {
+                            key: "amana",
+                            label: t("profile.completion.amana"),
+                          },
                           { key: "wave", label: t("profile.completion.wave") },
-                          { key: "airtel", label: t("profile.completion.airtel") },
-                          { key: "zamani", label: t("profile.completion.zamani") },
+                          {
+                            key: "airtel",
+                            label: t("profile.completion.airtel"),
+                          },
+                          {
+                            key: "zamani",
+                            label: t("profile.completion.zamani"),
+                          },
                           { key: "moov", label: t("profile.completion.moov") },
                         ].map((option) => {
                           const selected = withdrawalMethod === option.key;
@@ -424,7 +436,9 @@ export default function ProfilIndex() {
                             <Pressable
                               key={option.key}
                               onPress={() =>
-                                setWithdrawalMethod(option.key as WithdrawalMethod)
+                                setWithdrawalMethod(
+                                  option.key as WithdrawalMethod,
+                                )
                               }
                               className={`flex-row items-center justify-between rounded-2xl border px-4 py-3 ${
                                 selected
@@ -437,7 +451,9 @@ export default function ProfilIndex() {
                               </Text>
                               <View
                                 className={`h-5 w-5 rounded-full border items-center justify-center ${
-                                  selected ? "border-flikk-lime" : "border-white/30"
+                                  selected
+                                    ? "border-flikk-lime"
+                                    : "border-white/30"
                                 }`}
                               >
                                 {selected && (
@@ -468,10 +484,14 @@ export default function ProfilIndex() {
 
                 <Pressable
                   className={`mt-6 h-14 items-center justify-center rounded-full bg-flikk-lime ${
-                    !firstName || !lastName || !canSaveMerchant ? "opacity-50" : ""
+                    !firstName || !lastName || !canSaveMerchant
+                      ? "opacity-50"
+                      : ""
                   }`}
                   onPress={handleSaveProfile}
-                  disabled={!firstName || !lastName || !canSaveMerchant || isUpdating}
+                  disabled={
+                    !firstName || !lastName || !canSaveMerchant || isUpdating
+                  }
                 >
                   {isUpdating ? (
                     <ActivityIndicator color="#121212" />
@@ -490,7 +510,7 @@ export default function ProfilIndex() {
           <MediaPicker
             isVisible={showMediaPicker}
             onClose={() => setShowMediaPicker(false)}
-            mediaTypes={['photo']}
+            mediaTypes={["photo"]}
             onSelect={(uri, type) => {
               if (type === "video") {
                 setErrorMessage(t("mediaPicker.errorInvalidFormat"));
@@ -827,6 +847,8 @@ export default function ProfilIndex() {
                   maxLength={6}
                   selectionColor="#CCFF00"
                   autoFocus
+                  textContentType="oneTimeCode"
+                  onSubmitEditing={handleConfirmCode}
                 />
               </View>
 

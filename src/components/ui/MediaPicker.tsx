@@ -29,6 +29,7 @@ interface MediaPickerProps {
 const { width, height } = Dimensions.get("window");
 const COLUMN_COUNT = 3;
 const ITEM_SIZE = width / COLUMN_COUNT;
+const VIDEO_ASPECT_RATIO = 9 / 16;
 
 const DEFAULT_MEDIA_TYPES: MediaLibrary.MediaTypeValue[] = ["photo", "video"];
 
@@ -311,16 +312,35 @@ export function MediaPicker({
             </View>
 
             {selectedAsset.mediaType === "video" ? (
-              <VideoView
-                player={player}
-                contentFit="contain"
+              <View
                 style={{
-                  width: width,
-                  height: height - (insets.top + insets.bottom),
+                  flex: 1,
                   marginTop: insets.top,
+                  alignItems: "center",
+                  justifyContent: "center",
                   backgroundColor: "black",
                 }}
-              />
+              >
+                <View
+                  style={{
+                    width: Math.min(width, (height - (insets.top + insets.bottom)) * VIDEO_ASPECT_RATIO),
+                    height:
+                      Math.min(width, (height - (insets.top + insets.bottom)) * VIDEO_ASPECT_RATIO) /
+                      VIDEO_ASPECT_RATIO,
+                    backgroundColor: "black",
+                    overflow: "hidden",
+                  }}
+                >
+                  <VideoView
+                    player={player}
+                    contentFit="cover"
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                    }}
+                  />
+                </View>
+              </View>
             ) : (
               <Image
                 source={{ uri: selectedAsset.uri }}

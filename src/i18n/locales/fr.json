@@ -101,6 +101,7 @@
       "merchantInfo": "Informations du commerce",
       "businessName": "Nom du commerce",
       "taxId": "Numéro d'identification fiscal (NIF)",
+      "taxIdOptional": "Facultatif",
       "address": "Adresse du commerce",
       "businessPhone": "Téléphone du commerce",
       "logo": "Logo du magasin",

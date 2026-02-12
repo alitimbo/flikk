@@ -101,6 +101,7 @@
       "merchantInfo": "Business Information",
       "businessName": "Business Name",
       "taxId": "Tax ID (NIF)",
+      "taxIdOptional": "Optional",
       "address": "Business Address",
       "businessPhone": "Business Phone",
       "logo": "Store Logo",
@@ -291,3 +292,6 @@
     "addErrorBody": "Unable to add this product right now."
   }
 }
+
+
+
