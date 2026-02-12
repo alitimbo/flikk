@@ -61,7 +61,6 @@ interface FeedItemProps {
 
 const { height } = Dimensions.get("window");
 const VIDEO_ASPECT_RATIO = 9 / 16;
-const SQUARE_ASPECT_RATIO = 1;
 const VERTICAL_RATIO_TOLERANCE = 0.04;
 
 export function FeedItem({
@@ -131,32 +130,20 @@ export function FeedItem({
     () => publication.hlsUrl || publication.videoUrl,
     [publication.hlsUrl, publication.videoUrl],
   );
-  const targetAspectRatio = isVerticalVideo
-    ? VIDEO_ASPECT_RATIO
-    : SQUARE_ASPECT_RATIO;
   const videoContentFit: "cover" | "contain" = isVerticalVideo
     ? "cover"
     : "contain";
 
   const { videoFrameWidth, videoFrameHeight } = useMemo(() => {
-    const containerWidth = Math.max(1, containerSize.width);
-    const containerHeight = Math.max(1, containerSize.height);
-    const containerRatio = containerWidth / containerHeight;
-
-    if (containerRatio > targetAspectRatio) {
-      const height = containerHeight;
-      return {
-        videoFrameWidth: height * targetAspectRatio,
-        videoFrameHeight: height,
-      };
-    }
-
-    const width = containerWidth;
+    // Always occupy full feed viewport.
+    // Rendering mode is controlled by `contentFit`:
+    // - vertical => cover
+    // - non-vertical => contain
     return {
-      videoFrameWidth: width,
-      videoFrameHeight: width / targetAspectRatio,
+      videoFrameWidth: Math.max(1, containerSize.width),
+      videoFrameHeight: Math.max(1, containerSize.height),
     };
-  }, [containerSize.height, containerSize.width, targetAspectRatio]);
+  }, [containerSize.height, containerSize.width]);
 
   const handleContainerLayout = useCallback((event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
@@ -207,6 +194,14 @@ export function FeedItem({
         setIsVerticalVideo(true);
       }
     });
+    const trackSub = player.addListener("videoTrackChange", (payload) => {
+      const track = payload.videoTrack;
+      if (!track?.size?.width || !track?.size?.height) return;
+      const ratio = track.size.width / track.size.height;
+      const isVertical =
+        Math.abs(ratio - VIDEO_ASPECT_RATIO) <= VERTICAL_RATIO_TOLERANCE;
+      setIsVerticalVideo(isVertical);
+    });
     const endSub = player.addListener("playToEnd", () => {
       if (isActive) {
         onRequestNext?.(index);
@@ -219,6 +214,7 @@ export function FeedItem({
     return () => {
       timeSub.remove();
       sourceSub.remove();
+      trackSub.remove();
       endSub.remove();
       playingSub.remove();
     };
