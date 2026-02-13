@@ -14,6 +14,7 @@ import {
   Keyboard,
   Easing,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, Feather } from "@expo/vector-icons";
@@ -79,6 +80,19 @@ export default function ActionIndex() {
     p.muted = true;
     p.staysActiveInBackground = false;
   });
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.timing(aiPulse, {
+        toValue: 1,
+        duration: 2500,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [aiPulse]);
 
   useEffect(() => {
     let isMounted = true;
@@ -202,7 +216,7 @@ export default function ActionIndex() {
         hashtags: hashtags
           .split(" ")
           .filter((h) => h.startsWith("#"))
-          .map((h) => h.trim()),
+          .map((h) => h.trim().replace("#", "")),
         imageUrl: photoRes.downloadUrl,
         videoUrl: videoRes.downloadUrl,
         merchantName,
@@ -231,7 +245,8 @@ export default function ActionIndex() {
         topOffset: 52,
       });
       try {
-        successSoundPlayer.replay();
+        successSoundPlayer.seekBy(-successSoundPlayer.currentTime);
+        successSoundPlayer.play();
       } catch {
         // No-op if sound cannot play on this device/session.
       }
@@ -409,8 +424,44 @@ export default function ActionIndex() {
             <Text className="font-display text-2xl text-flikk-text">
               {t("action.title")}
             </Text>
-            <Pressable className="h-10 w-10 items-center justify-center rounded-full bg-white/10">
-              <Ionicons name="ellipsis-horizontal" size={20} color="white" />
+            <Pressable
+              onPress={() => setActionMode("ai-order")}
+              className="h-9 px-4 items-center justify-center rounded-xl overflow-hidden relative bg-[#CCFF00]"
+            >
+              {/* Wave Animation Overlay */}
+              <Animated.View
+                style={{
+                  position: "absolute",
+                  width: "300%",
+                  height: "100%",
+                  transform: [
+                    {
+                      translateX: aiPulse.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [-200, 50],
+                      }),
+                    },
+                  ],
+                }}
+              >
+                <LinearGradient
+                  colors={[
+                    "transparent",
+                    "rgba(255,255,255,0.4)",
+                    "transparent",
+                  ]}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  className="w-full h-full"
+                />
+              </Animated.View>
+
+              <View className="flex-row items-center gap-1.5 z-10">
+                <Text className="font-display text-xs font-black text-flikk-dark">
+                  IA
+                </Text>
+                <Ionicons name="sparkles" size={12} color="#121212" />
+              </View>
             </Pressable>
           </View>
 
@@ -501,6 +552,17 @@ export default function ActionIndex() {
                       </View>
                     )}
                     {itemPhoto && (
+                      <Pressable
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          setItemPhoto(null);
+                        }}
+                        className="absolute top-2 right-2 bg-black/60 rounded-full p-1.5"
+                      >
+                        <Ionicons name="trash" size={12} color="#FF4D6D" />
+                      </Pressable>
+                    )}
+                    {itemPhoto && (
                       <View className="absolute bottom-2 right-2 bg-flikk-lime rounded-full p-1">
                         <Ionicons name="checkmark" size={12} color="black" />
                       </View>
@@ -535,6 +597,17 @@ export default function ActionIndex() {
                           <Text className="text-[#FF4D6D]"> *</Text>
                         </Text>
                       </View>
+                    )}
+                    {commercialVideo && (
+                      <Pressable
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          setCommercialVideo(null);
+                        }}
+                        className="absolute top-2 right-2 bg-black/60 rounded-full p-1.5"
+                      >
+                        <Ionicons name="trash" size={12} color="#FF4D6D" />
+                      </Pressable>
                     )}
                     {commercialVideo && (
                       <View className="absolute bottom-2 right-2 bg-flikk-lime rounded-full p-1">
@@ -685,6 +758,17 @@ export default function ActionIndex() {
                         </Text>
                       </View>
                     )}
+                    {aiImageOne && (
+                      <Pressable
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          setAiImageOne(null);
+                        }}
+                        className="absolute top-2 right-2 bg-black/60 rounded-full p-1.5"
+                      >
+                        <Ionicons name="trash" size={12} color="#FF4D6D" />
+                      </Pressable>
+                    )}
                   </Pressable>
                   <Pressable
                     onPress={() => setPickerMode("ai-photo-2")}
@@ -707,6 +791,17 @@ export default function ActionIndex() {
                           {t("action.aiOrder.photo2")}
                         </Text>
                       </View>
+                    )}
+                    {aiImageTwo && (
+                      <Pressable
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          setAiImageTwo(null);
+                        }}
+                        className="absolute top-2 right-2 bg-black/60 rounded-full p-1.5"
+                      >
+                        <Ionicons name="trash" size={12} color="#FF4D6D" />
+                      </Pressable>
                     )}
                   </Pressable>
                 </View>
@@ -744,15 +839,27 @@ export default function ActionIndex() {
                             : "border-white/10 bg-flikk-card"
                         }`}
                       >
-                        <Text
-                          className={`font-bold ${
-                            aiFormat === fmt
-                              ? "text-flikk-lime"
-                              : "text-flikk-text"
-                          }`}
-                        >
-                          {fmt}
-                        </Text>
+                        <View className="flex-row items-center gap-2">
+                          <Ionicons
+                            name="phone-portrait-outline"
+                            size={16}
+                            color={aiFormat === fmt ? "#CCFF00" : "#FFFFFF"}
+                            style={
+                              fmt === "16:9"
+                                ? { transform: [{ rotate: "90deg" }] }
+                                : {}
+                            }
+                          />
+                          <Text
+                            className={`font-bold ${
+                              aiFormat === fmt
+                                ? "text-flikk-lime"
+                                : "text-flikk-text"
+                            }`}
+                          >
+                            {fmt}
+                          </Text>
+                        </View>
                       </Pressable>
                     ))}
                   </View>

@@ -14,6 +14,7 @@ const publicationController = require("./controllers/publicationController");
 const viewController = require("./controllers/viewController");
 const paymentController = require("./controllers/paymentController");
 const webhookController = require("./controllers/webhookController");
+const aiVideoController = require("./controllers/aiVideoController");
 
 // Initialize Admin once at entry point
 if (admin.apps.length === 0) {
@@ -36,6 +37,7 @@ exports.requestPayment = paymentController.requestPayment;
 exports.requestManualOrder = paymentController.requestManualOrder;
 exports.getPaymentStatus = paymentController.getPaymentStatus;
 exports.ipayWebhook = webhookController.ipayWebhook;
+exports.requestAiVideoOrder = aiVideoController.requestAiVideoOrder;
 
 // Example of grouping for future scalability
 // exports.publications = {
