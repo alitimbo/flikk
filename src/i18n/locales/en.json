@@ -184,6 +184,27 @@
       "title": "What are you selling?",
       "price": "0",
       "hashtags": "#fashion #new #deal"
+    },
+    "aiOrder": {
+      "menuTitle": "AI Video",
+      "standardTitle": "Publication",
+      "formTitle": "Generate AI Video",
+      "formSubtitle": "Transform your photos into impactful ads with our AI tools.",
+      "photo1": "Product Photo 1",
+      "photo2": "Product Photo 2",
+      "contentLabel": "Expected Content",
+      "contentPlaceholder": "Explain what you want to see in the video...",
+      "formatLabel": "Format",
+      "receptionLabel": "Reception Method",
+      "whatsapp": "WhatsApp",
+      "email": "Email",
+      "priceFree": "Free (Trial)",
+      "pricePaid": "{{price}} CFA / video",
+      "submit": "Start Generation",
+      "freeRemaining": "{{count}} free trial(s) left",
+      "limitReached": "Free limit reached. Paid service.",
+      "successTitle": "Order Saved",
+      "successBody": "Your AI video request has been received. We will contact you soon."
     }
   },
   "feed": {
@@ -292,6 +313,3 @@
     "addErrorBody": "Unable to add this product right now."
   }
 }
-
-
-
