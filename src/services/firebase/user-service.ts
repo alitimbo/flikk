@@ -27,6 +27,16 @@ export class UserService {
     // Remove undefined fields to avoid Firestore errors
     const safeData = JSON.parse(JSON.stringify(data));
     const ref = doc(this.collection, uid);
+    const existingSnap = await getDoc(ref);
+
+    if (typeof safeData.freeUsageCount === "undefined") {
+      const existingFreeUsageCount = existingSnap.exists()
+        ? existingSnap.data()?.freeUsageCount
+        : undefined;
+      safeData.freeUsageCount =
+        typeof existingFreeUsageCount === "number" ? existingFreeUsageCount : 0;
+    }
+
     await setDoc(
       ref,
       {

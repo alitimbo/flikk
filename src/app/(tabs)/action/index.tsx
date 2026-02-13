@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import {
+  Animated,
   View,
   Text,
   TextInput,
@@ -11,6 +12,7 @@ import {
   ActivityIndicator,
   TouchableWithoutFeedback,
   Keyboard,
+  Easing,
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -25,9 +27,13 @@ import { useRouter } from "expo-router";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import Toast from "react-native-toast-message";
 import { useVideoPlayer, VideoView } from "expo-video";
+import { AiVideoOrderService } from "@/services/firebase/ai-video-order-service";
+import type { AiVideoFormat, AiVideoReceptionMethod } from "@/types";
 
 const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
 const PUBLISH_SUCCESS_SOUND = require("@/assets/sounds/publish-success.mp3");
+const AI_VIDEO_BASE_PRICE = 8000;
+const FREE_VIDEO_LIMIT = 2;
 
 export default function ActionIndex() {
   const { t } = useTranslation();
@@ -42,10 +48,24 @@ export default function ActionIndex() {
   const [hashtags, setHashtags] = useState("");
   const [itemPhoto, setItemPhoto] = useState<string | null>(null);
   const [commercialVideo, setCommercialVideo] = useState<string | null>(null);
+  const [actionMode, setActionMode] = useState<"publish" | "ai-order">("publish");
 
   // --- ÉTATS DU PICKER ---
-  const [pickerMode, setPickerMode] = useState<"photo" | "video" | null>(null);
+  const [pickerMode, setPickerMode] = useState<
+    "photo" | "video" | "ai-photo-1" | "ai-photo-2" | null
+  >(null);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [isAiSubmitting, setIsAiSubmitting] = useState(false);
+  const [isAiMenuOpen, setIsAiMenuOpen] = useState(false);
+  const aiPulse = useState(new Animated.Value(0))[0];
+  const [aiImageOne, setAiImageOne] = useState<string | null>(null);
+  const [aiImageTwo, setAiImageTwo] = useState<string | null>(null);
+  const [aiExpectedContent, setAiExpectedContent] = useState("");
+  const [aiFormat, setAiFormat] = useState<AiVideoFormat>("9:16");
+  const [aiReceptionMethod, setAiReceptionMethod] =
+    useState<AiVideoReceptionMethod>("whatsapp");
+  const [aiWhatsapp, setAiWhatsapp] = useState("");
+  const [aiEmail, setAiEmail] = useState("");
   const successSoundPlayer = useVideoPlayer(PUBLISH_SUCCESS_SOUND, (p) => {
     p.loop = false;
     p.muted = false;
@@ -93,6 +113,40 @@ export default function ActionIndex() {
   const { data: userProfile, isLoading: isProfileLoading } = useUserProfile(
     authUser?.uid,
   );
+  const freeUsageCount = Number(userProfile?.freeUsageCount ?? 0);
+  const freeVideosLeft = Math.max(0, FREE_VIDEO_LIMIT - freeUsageCount);
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(aiPulse, {
+          toValue: 1,
+          duration: 1100,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(aiPulse, {
+          toValue: 0,
+          duration: 1100,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+
+    animation.start();
+    return () => animation.stop();
+  }, [aiPulse]);
+
+  useEffect(() => {
+    if (!authUser) return;
+    if (!aiWhatsapp) {
+      setAiWhatsapp((userProfile?.phoneNumber ?? authUser.phoneNumber ?? "").replace(/\D/g, ""));
+    }
+    if (!aiEmail) {
+      setAiEmail(userProfile?.email ?? "");
+    }
+  }, [authUser, userProfile?.phoneNumber, userProfile?.email, aiWhatsapp, aiEmail]);
 
   const handlePublish = useCallback(async () => {
     const user = getAuth().currentUser;
