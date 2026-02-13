@@ -184,6 +184,27 @@
       "title": "Que vendez-vous ?",
       "price": "0",
       "hashtags": "#mode #nouveauté #promo"
+    },
+    "aiOrder": {
+      "menuTitle": "Vidéo IA",
+      "standardTitle": "Publication",
+      "formTitle": "Générer une vidéo IA",
+      "formSubtitle": "Transformez vos photos en publicités impactantes grâce à nos outils IA.",
+      "photo1": "Photo Produit 1",
+      "photo2": "Photo Produit 2",
+      "contentLabel": "Contenu attendu",
+      "contentPlaceholder": "Expliquez ce que vous souhaitez voir dans la vidéo...",
+      "formatLabel": "Format",
+      "receptionLabel": "Mode de réception",
+      "whatsapp": "WhatsApp",
+      "email": "Email",
+      "priceFree": "Gratuit (Essai)",
+      "pricePaid": "{{price}} CFA / vidéo",
+      "submit": "Démarrer la génération",
+      "freeRemaining": "{{count}} essai(s) gratuit(s) restant(s)",
+      "limitReached": "Limite gratuite atteinte. Service payant.",
+      "successTitle": "Commande enregistrée",
+      "successBody": "Votre demande de vidéo IA a été reçue. Nous vous contacterons bientôt."
     }
   },
   "feed": {

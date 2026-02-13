@@ -1,6 +1,8 @@
 export type UserRole = "merchant" | "customer";
 export type UserStatus = "active" | "inactive";
 export type AppLanguage = "fr" | "en";
+export type AiVideoFormat = "16:9" | "9:16";
+export type AiVideoReceptionMethod = "whatsapp" | "email";
 
 export interface UserMerchantInfo {
   businessName: string;
@@ -29,9 +31,31 @@ export interface UserProfile {
   role: UserRole;
   status: UserStatus;
   isMerchant: boolean; // Kept for backward compatibility, but synced with role
+  freeUsageCount?: number;
   followerCount?: number;
   notificationLanguage?: AppLanguage;
   merchantInfo?: UserMerchantInfo;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+export interface AiVideoOrder {
+  orderId: string;
+  orderNumber: string;
+  customerId: string;
+  customerName: string;
+  customerPhone?: string | null;
+  customerEmail?: string | null;
+  expectedContent: string;
+  format: AiVideoFormat;
+  productImage1Url: string;
+  productImage2Url: string;
+  receptionMethod: AiVideoReceptionMethod;
+  receptionContact: string;
+  basePrice: number;
+  finalPrice: number;
+  freeUsageApplied: boolean;
+  status: "pending" | "processing" | "done" | "cancelled";
   createdAt?: any;
   updatedAt?: any;
 }
