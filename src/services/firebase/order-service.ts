@@ -20,7 +20,9 @@ type OrdersPage = {
 };
 
 export class OrderService {
-  private static collection = collection(FirebaseService.db, "orders");
+  private static get collection() {
+    return collection(FirebaseService.db, "orders");
+  }
   private static shouldShowForMerchant(order: Order): boolean {
     const effectiveStatus = resolveOrderStatus(order);
     return effectiveStatus !== "pending";
@@ -95,13 +97,13 @@ export class OrderService {
   static async getMerchantOrderCount(merchantId: string): Promise<number> {
     if (!merchantId) return 0;
     try {
-      const q = query(
-        this.collection,
-        where("merchantId", "==", merchantId),
-      );
+      const q = query(this.collection, where("merchantId", "==", merchantId));
       const snapshot = await getDocs(q);
       const count = snapshot.docs
-        .map((docSnap) => ({ orderId: docSnap.id, ...(docSnap.data() as Order) }))
+        .map((docSnap) => ({
+          orderId: docSnap.id,
+          ...(docSnap.data() as Order),
+        }))
         .filter((order) => this.shouldShowForMerchant(order)).length;
       return count;
     } catch (error) {

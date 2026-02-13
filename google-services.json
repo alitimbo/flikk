@@ -12,7 +12,16 @@
           "package_name": "com.flikk.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "958811154492-g1a16llqom5bhalnscncnjp6alee6m5l.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.flikk.app",
+            "certificate_hash": "f3a1fb837b1408458c89c7a549f0307ce0aee717"
+          }
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDZkJGDvTMXjQVEMG1GH9dh7OV6v_bUcrQ"

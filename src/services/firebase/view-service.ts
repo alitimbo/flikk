@@ -5,7 +5,9 @@ type IncrementViewResponse = {
 };
 
 export class ViewService {
-  private static functions = getFunctions(undefined, "us-central1");
+  private static get functions() {
+    return getFunctions(undefined, "us-central1");
+  }
 
   static async incrementViewOnce(
     publicationId: string,

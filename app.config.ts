@@ -20,6 +20,34 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     package: "com.flikk.app",
+    intentFilters: [
+      {
+        action: "VIEW",
+        autoVerify: false,
+        data: [
+          {
+            scheme:
+              "com.googleusercontent.apps.958811154492-g1a16llqom5bhalnscncnjp6alee6m5l",
+          },
+        ],
+        category: ["BROWSABLE", "DEFAULT"],
+      },
+      {
+        action: "VIEW",
+        autoVerify: true,
+        data: [
+          {
+            scheme: "https",
+            host: "flikk-3c3a0.web.app",
+          },
+          {
+            scheme: "https",
+            host: "flikk-3c3a0.firebaseapp.com",
+          },
+        ],
+        category: ["BROWSABLE", "DEFAULT"],
+      },
+    ],
     adaptiveIcon: {
       backgroundColor: "#2B2B2B",
       foregroundImage: "./assets/images/android/android-icon-foreground.png",
@@ -32,10 +60,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       "INTERNET",
       "ACCESS_NETWORK_STATE",
       "WAKE_LOCK",
-      "READ_EXTERNAL_STORAGE", // Vieux Android
-      "WRITE_EXTERNAL_STORAGE", // Vieux Android
-      "READ_MEDIA_IMAGES", // Android 13+
-      "READ_MEDIA_VIDEO", // Android 13+
+      "READ_MEDIA_IMAGES",
+      "READ_MEDIA_VIDEO",
       "POST_NOTIFICATIONS",
     ],
   },

@@ -31,7 +31,9 @@ type CommentInput = {
 };
 
 export class CommentService {
-  private static collection = collection(FirebaseService.db, "comments");
+  private static get collection() {
+    return collection(FirebaseService.db, "comments");
+  }
 
   static async getComments(
     publicationId: string,
@@ -75,7 +77,11 @@ export class CommentService {
       doc(this.collection, commentId),
       "replies",
     );
-    let q = query(repliesCollection, orderBy("createdAt", "asc"), limit(pageSize));
+    let q = query(
+      repliesCollection,
+      orderBy("createdAt", "asc"),
+      limit(pageSize),
+    );
     if (lastDoc) {
       q = query(q, startAfter(lastDoc));
     }
@@ -170,10 +176,7 @@ export class CommentService {
     parentId?: string,
   ): Promise<void> {
     const targetRef = parentId
-      ? doc(
-          collection(doc(this.collection, parentId), "replies"),
-          targetId,
-        )
+      ? doc(collection(doc(this.collection, parentId), "replies"), targetId)
       : doc(this.collection, targetId);
     const likeRef = doc(collection(targetRef, "commentLikes"), userId);
 
@@ -205,10 +208,7 @@ export class CommentService {
     parentId?: string,
   ): Promise<void> {
     const targetRef = parentId
-      ? doc(
-          collection(doc(this.collection, parentId), "replies"),
-          targetId,
-        )
+      ? doc(collection(doc(this.collection, parentId), "replies"), targetId)
       : doc(this.collection, targetId);
     const likeRef = doc(collection(targetRef, "commentLikes"), userId);
 

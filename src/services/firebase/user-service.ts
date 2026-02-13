@@ -11,7 +11,9 @@ import {
 import { getDownloadURL, putFile, ref } from "@react-native-firebase/storage";
 
 export class UserService {
-  private static collection = collection(FirebaseService.db, "users");
+  private static get collection() {
+    return collection(FirebaseService.db, "users");
+  }
 
   static async getUser(uid: string): Promise<UserProfile | null> {
     const ref = doc(this.collection, uid);
@@ -89,7 +91,9 @@ export class UserService {
       updatedAt: serverTimestamp(),
       lastSeenAt: serverTimestamp(),
       platform:
-        Platform.OS === "ios" || Platform.OS === "android" || Platform.OS === "web"
+        Platform.OS === "ios" ||
+        Platform.OS === "android" ||
+        Platform.OS === "web"
           ? Platform.OS
           : "android",
     };
