@@ -1,0 +1,14 @@
+[
+    {
+        "relation": [
+            "delegate_permission/common.handle_all_urls"
+        ],
+        "target": {
+            "namespace": "android_app",
+            "package_name": "com.flikk.app",
+            "sha256_cert_fingerprints": [
+                "82:1F:70:D9:32:EA:57:4D:EA:5A:7C:30:DB:C5:43:BA:32:0D:00:BD:FC:65:4B:09:0F:FF:EC:27:6D:4F:48:4D"
+            ]
+        }
+    }
+]

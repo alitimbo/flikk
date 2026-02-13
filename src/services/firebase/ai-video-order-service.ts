@@ -1,13 +1,14 @@
 import { getFunctions, httpsCallable } from "@react-native-firebase/functions";
 import type {
   AiVideoFormat,
-  AiVideoOrder,
   AiVideoReceptionMethod,
   UserProfile,
 } from "@/types";
 
 export class AiVideoOrderService {
-  private static functions = getFunctions(undefined, "us-central1");
+  private static get functions() {
+    return getFunctions(undefined, "us-central1");
+  }
 
   static async createOrder(params: {
     uid: string;

@@ -23,7 +23,9 @@ import { buildSearchTokens, normalizeSearchToken } from "@/utils/search";
 import { chunkArray } from "@/utils/array";
 
 export class PublicationService {
-  private static collection = collection(FirebaseService.db, "publications");
+  private static get collection() {
+    return collection(FirebaseService.db, "publications");
+  }
 
   static async createPublication(
     publication: Omit<
@@ -215,10 +217,7 @@ export class PublicationService {
     const chunks = chunkArray(ids, 10);
     const results = await Promise.all(
       chunks.map(async (chunk) => {
-        const q = query(
-          this.collection,
-          where(documentId(), "in", chunk),
-        );
+        const q = query(this.collection, where(documentId(), "in", chunk));
         const snapshot = await getDocs(q);
         return snapshot.docs.map((docSnap) => ({
           id: docSnap.id,
@@ -276,9 +275,7 @@ export class PublicationService {
     );
     if (missing.length === 0) return;
 
-    const uniqueUserIds = Array.from(
-      new Set(missing.map((pub) => pub.userId)),
-    );
+    const uniqueUserIds = Array.from(new Set(missing.map((pub) => pub.userId)));
 
     const usersCollection = collection(FirebaseService.db, "users");
     const userDocs = await Promise.all(

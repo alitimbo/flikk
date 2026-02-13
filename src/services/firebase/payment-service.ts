@@ -1,10 +1,18 @@
 import { getFunctions, httpsCallable } from "@react-native-firebase/functions";
-import type { PaymentRequest, PaymentResponse, PaymentStatusResponse } from "@/types";
+import type {
+  PaymentRequest,
+  PaymentResponse,
+  PaymentStatusResponse,
+} from "@/types";
 
 export class PaymentService {
-  private static functions = getFunctions(undefined, "us-central1");
+  private static get functions() {
+    return getFunctions(undefined, "us-central1");
+  }
 
-  static async requestPayment(payload: PaymentRequest): Promise<PaymentResponse> {
+  static async requestPayment(
+    payload: PaymentRequest,
+  ): Promise<PaymentResponse> {
     const call = httpsCallable<PaymentRequest, PaymentResponse>(
       this.functions,
       "requestPayment",
@@ -13,7 +21,9 @@ export class PaymentService {
     return result.data;
   }
 
-  static async requestManualOrder(payload: PaymentRequest): Promise<PaymentResponse> {
+  static async requestManualOrder(
+    payload: PaymentRequest,
+  ): Promise<PaymentResponse> {
     const call = httpsCallable<PaymentRequest, PaymentResponse>(
       this.functions,
       "requestManualOrder",
@@ -22,7 +32,9 @@ export class PaymentService {
     return result.data;
   }
 
-  static async getPaymentStatus(reference: string): Promise<PaymentStatusResponse> {
+  static async getPaymentStatus(
+    reference: string,
+  ): Promise<PaymentStatusResponse> {
     const call = httpsCallable<{ reference: string }, PaymentStatusResponse>(
       this.functions,
       "getPaymentStatus",

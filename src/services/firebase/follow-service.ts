@@ -11,10 +11,9 @@ import {
 } from "@react-native-firebase/firestore";
 
 export class FollowService {
-  private static followsCollection = collection(
-    FirebaseService.db,
-    "merchantFollowers",
-  );
+  private static get followsCollection() {
+    return collection(FirebaseService.db, "merchantFollowers");
+  }
 
   private static buildFollowDocId(
     merchantId: string,
@@ -38,7 +37,10 @@ export class FollowService {
 
   static async getFollowerCount(merchantId: string): Promise<number> {
     if (!merchantId) return 0;
-    const q = query(this.followsCollection, where("merchantId", "==", merchantId));
+    const q = query(
+      this.followsCollection,
+      where("merchantId", "==", merchantId),
+    );
     const snapshot = await getDocs(q);
     return snapshot.size;
   }
@@ -53,7 +55,10 @@ export class FollowService {
       this.followsCollection,
       this.buildFollowDocId(merchantId, followerId),
     );
-    const merchantRef = doc(collection(FirebaseService.db, "users"), merchantId);
+    const merchantRef = doc(
+      collection(FirebaseService.db, "users"),
+      merchantId,
+    );
 
     const isNowFollowing = await runTransaction(
       FirebaseService.db,
