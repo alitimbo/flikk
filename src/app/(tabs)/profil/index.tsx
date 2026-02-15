@@ -29,6 +29,11 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import type { WithdrawalMethod } from "@/types";
 import * as WebBrowser from "expo-web-browser";
 import { setLanguage } from "@/i18n";
+import { CustomOtpAuthService } from "@/services/firebase/custom-otp-auth-service";
+
+const OTP_AUTH_MODE = (process.env.EXPO_PUBLIC_OTP_AUTH_MODE || "hybrid").toLowerCase();
+const USE_CUSTOM_OTP = OTP_AUTH_MODE !== "firebase";
+const USE_FIREBASE_FALLBACK = OTP_AUTH_MODE === "hybrid" || OTP_AUTH_MODE === "firebase";
 
 export default function ProfilIndex() {
   const insets = useSafeAreaInsets();
@@ -39,8 +44,10 @@ export default function ProfilIndex() {
   // Login State
   const [phoneNumber, setPhoneNumber] = useState("");
   const [smsCode, setSmsCode] = useState("");
+  const [challengeId, setChallengeId] = useState<string | null>(null);
   const [confirmation, setConfirmation] =
     useState<FirebaseAuthTypes.ConfirmationResult | null>(null);
+  const [otpStrategy, setOtpStrategy] = useState<"custom" | "firebase" | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [resendSeconds, setResendSeconds] = useState(0);
@@ -130,6 +137,10 @@ export default function ProfilIndex() {
     () => phoneNumber.trim().length >= 8 && resendSeconds === 0,
     [phoneNumber, resendSeconds],
   );
+  const hasPendingOtpChallenge = useMemo(
+    () => !!challengeId || !!confirmation,
+    [challengeId, confirmation],
+  );
   const canConfirm = useMemo(() => smsCode.trim().length >= 4, [smsCode]);
   const currentLanguage = useMemo(
     () => (i18n.language?.startsWith("en") ? "en" : "fr"),
@@ -149,14 +160,34 @@ export default function ProfilIndex() {
     try {
       setIsLoading(true);
       const fullPhone = `${COUNTRIES[countryIndex].dial}${phoneNumber.trim()}`;
-      const result = await signInWithPhoneNumber(
+
+      if (USE_CUSTOM_OTP) {
+        try {
+          const result = await CustomOtpAuthService.requestOtpCode(fullPhone);
+          setChallengeId(result.challengeId);
+          setConfirmation(null);
+          setOtpStrategy("custom");
+          setResendSeconds(Number(result.resendAfterSec || 30));
+          return;
+        } catch (customError) {
+          console.log("Custom OTP send failed", customError);
+        }
+      }
+
+      if (!USE_FIREBASE_FALLBACK) {
+        throw new Error("OTP_CUSTOM_FAILED_NO_FALLBACK");
+      }
+
+      const firebaseConfirmation = await signInWithPhoneNumber(
         FirebaseService.auth,
         fullPhone,
       );
-      setConfirmation(result);
+      setConfirmation(firebaseConfirmation);
+      setChallengeId(null);
+      setOtpStrategy("firebase");
       setResendSeconds(30);
-    } catch {
-      console.log("Error sending code");
+    } catch (error) {
+      console.log("Error sending code", error);
       setErrorMessage(t("profile.login.errorSend"));
     } finally {
       setIsLoading(false);
@@ -164,17 +195,27 @@ export default function ProfilIndex() {
   }, [canSendCode, phoneNumber, countryIndex, COUNTRIES, t]);
 
   const handleConfirmCode = useCallback(async () => {
-    if (!confirmation || !canConfirm) return;
+    if (!canConfirm) return;
     try {
       setIsLoading(true);
-      await confirmation.confirm(smsCode.trim());
+      if (otpStrategy === "custom" && challengeId) {
+        await CustomOtpAuthService.signInWithOtp(challengeId, smsCode.trim());
+      } else if (otpStrategy === "firebase" && confirmation) {
+        await confirmation.confirm(smsCode.trim());
+      } else {
+        throw new Error("NO_OTP_SESSION");
+      }
       setSmsCode("");
-    } catch {
+      setChallengeId(null);
+      setConfirmation(null);
+      setOtpStrategy(null);
+    } catch (error) {
+      console.log("Error confirming code", error);
       setErrorMessage(t("profile.login.errorCode"));
     } finally {
       setIsLoading(false);
     }
-  }, [canConfirm, confirmation, smsCode, t]);
+  }, [canConfirm, challengeId, confirmation, otpStrategy, smsCode, t]);
 
   const handleSignOut = useCallback(async () => {
     await signOut(FirebaseService.auth);
@@ -735,7 +776,7 @@ export default function ProfilIndex() {
         </View>
 
         <View className="mt-10 rounded-3xl border border-white/10 bg-flikk-card p-6">
-          {!confirmation ? (
+          {!hasPendingOtpChallenge ? (
             <>
               <Text className="font-display text-xl text-flikk-text">
                 {t("profile.login.title")}
@@ -871,7 +912,9 @@ export default function ProfilIndex() {
               <Pressable
                 className="mt-4 items-center p-4"
                 onPress={() => {
+                  setChallengeId(null);
                   setConfirmation(null);
+                  setOtpStrategy(null);
                   setSmsCode("");
                 }}
               >

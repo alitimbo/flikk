@@ -32,9 +32,10 @@ export class UserService {
     const existingSnap = await getDoc(ref);
 
     if (typeof safeData.freeUsageCount === "undefined") {
-      const existingFreeUsageCount = existingSnap.exists()
-        ? existingSnap.data()?.freeUsageCount
+      const existingData = existingSnap.exists()
+        ? (existingSnap.data() as Partial<UserProfile> | undefined)
         : undefined;
+      const existingFreeUsageCount = existingData?.freeUsageCount;
       safeData.freeUsageCount =
         typeof existingFreeUsageCount === "number" ? existingFreeUsageCount : 0;
     }
