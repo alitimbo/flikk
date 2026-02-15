@@ -16,7 +16,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { FirebaseAuthTypes } from "@react-native-firebase/auth";
 import {
+  PhoneAuthProvider,
+  getAuth,
   onAuthStateChanged,
+  signInWithCredential,
   signInWithPhoneNumber,
   signOut,
 } from "@react-native-firebase/auth";
@@ -30,10 +33,13 @@ import type { WithdrawalMethod } from "@/types";
 import * as WebBrowser from "expo-web-browser";
 import { setLanguage } from "@/i18n";
 import { CustomOtpAuthService } from "@/services/firebase/custom-otp-auth-service";
+import { MMKVStorage } from "@/storage/mmkv";
 
 const OTP_AUTH_MODE = (process.env.EXPO_PUBLIC_OTP_AUTH_MODE || "hybrid").toLowerCase();
 const USE_CUSTOM_OTP = OTP_AUTH_MODE !== "firebase";
 const USE_FIREBASE_FALLBACK = OTP_AUTH_MODE === "hybrid" || OTP_AUTH_MODE === "firebase";
+const FIREBASE_VERIFICATION_ID_KEY = "auth.firebase.verificationId";
+const FIREBASE_PENDING_PHONE_KEY = "auth.firebase.pendingPhone";
 
 export default function ProfilIndex() {
   const insets = useSafeAreaInsets();
@@ -47,6 +53,9 @@ export default function ProfilIndex() {
   const [challengeId, setChallengeId] = useState<string | null>(null);
   const [confirmation, setConfirmation] =
     useState<FirebaseAuthTypes.ConfirmationResult | null>(null);
+  const [firebaseVerificationId, setFirebaseVerificationId] = useState<
+    string | null
+  >(null);
   const [otpStrategy, setOtpStrategy] = useState<"custom" | "firebase" | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -97,6 +106,18 @@ export default function ProfilIndex() {
     return unsubscribe;
   }, []);
 
+  useEffect(() => {
+    const savedVerificationId = MMKVStorage.getItem(FIREBASE_VERIFICATION_ID_KEY);
+    const savedPhone = MMKVStorage.getItem(FIREBASE_PENDING_PHONE_KEY);
+    if (savedVerificationId) {
+      setFirebaseVerificationId(savedVerificationId);
+      setOtpStrategy("firebase");
+    }
+    if (savedPhone && !phoneNumber) {
+      setPhoneNumber(savedPhone);
+    }
+  }, [phoneNumber]);
+
   // Sync form states with profile data only when NOT editing to prevent loops and data loss
   useEffect(() => {
     if (userProfile && !isEditing) {
@@ -138,8 +159,8 @@ export default function ProfilIndex() {
     [phoneNumber, resendSeconds],
   );
   const hasPendingOtpChallenge = useMemo(
-    () => !!challengeId || !!confirmation,
-    [challengeId, confirmation],
+    () => !!challengeId || !!confirmation || !!firebaseVerificationId,
+    [challengeId, confirmation, firebaseVerificationId],
   );
   const canConfirm = useMemo(() => smsCode.trim().length >= 4, [smsCode]);
   const currentLanguage = useMemo(
@@ -183,6 +204,12 @@ export default function ProfilIndex() {
         fullPhone,
       );
       setConfirmation(firebaseConfirmation);
+      setFirebaseVerificationId(firebaseConfirmation.verificationId);
+      MMKVStorage.setItem(
+        FIREBASE_VERIFICATION_ID_KEY,
+        firebaseConfirmation.verificationId,
+      );
+      MMKVStorage.setItem(FIREBASE_PENDING_PHONE_KEY, phoneNumber.trim());
       setChallengeId(null);
       setOtpStrategy("firebase");
       setResendSeconds(30);
@@ -202,12 +229,21 @@ export default function ProfilIndex() {
         await CustomOtpAuthService.signInWithOtp(challengeId, smsCode.trim());
       } else if (otpStrategy === "firebase" && confirmation) {
         await confirmation.confirm(smsCode.trim());
+      } else if (otpStrategy === "firebase" && firebaseVerificationId) {
+        const credential = PhoneAuthProvider.credential(
+          firebaseVerificationId,
+          smsCode.trim(),
+        );
+        await signInWithCredential(getAuth(), credential);
       } else {
         throw new Error("NO_OTP_SESSION");
       }
       setSmsCode("");
       setChallengeId(null);
       setConfirmation(null);
+      setFirebaseVerificationId(null);
+      MMKVStorage.removeItem(FIREBASE_VERIFICATION_ID_KEY);
+      MMKVStorage.removeItem(FIREBASE_PENDING_PHONE_KEY);
       setOtpStrategy(null);
     } catch (error) {
       console.log("Error confirming code", error);
@@ -215,7 +251,15 @@ export default function ProfilIndex() {
     } finally {
       setIsLoading(false);
     }
-  }, [canConfirm, challengeId, confirmation, otpStrategy, smsCode, t]);
+  }, [
+    canConfirm,
+    challengeId,
+    confirmation,
+    firebaseVerificationId,
+    otpStrategy,
+    smsCode,
+    t,
+  ]);
 
   const handleSignOut = useCallback(async () => {
     await signOut(FirebaseService.auth);
@@ -914,6 +958,9 @@ export default function ProfilIndex() {
                 onPress={() => {
                   setChallengeId(null);
                   setConfirmation(null);
+                  setFirebaseVerificationId(null);
+                  MMKVStorage.removeItem(FIREBASE_VERIFICATION_ID_KEY);
+                  MMKVStorage.removeItem(FIREBASE_PENDING_PHONE_KEY);
                   setOtpStrategy(null);
                   setSmsCode("");
                 }}
