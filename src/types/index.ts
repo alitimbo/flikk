@@ -142,6 +142,27 @@ export interface PaymentStatusResponse {
   msisdn?: string;
 }
 
+export interface OtpStartRequest {
+  phoneNumber: string;
+}
+
+export interface OtpStartResponse {
+  challengeId: string;
+  expiresInSec: number;
+  resendAfterSec: number;
+}
+
+export interface OtpVerifyRequest {
+  challengeId: string;
+  code: string;
+}
+
+export interface OtpVerifyResponse {
+  customToken: string;
+  uid: string;
+  isNewUser: boolean;
+}
+
 export interface Order {
   orderId: string;
   orderNumber?: string | null;

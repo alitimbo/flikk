@@ -26,6 +26,21 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         autoVerify: false,
         data: [
           {
+            scheme: "flikk",
+            host: "firebaseauth",
+            pathPrefix: "/link",
+          },
+          {
+            scheme: "com.flikk.app",
+          },
+        ],
+        category: ["BROWSABLE", "DEFAULT"],
+      },
+      {
+        action: "VIEW",
+        autoVerify: false,
+        data: [
+          {
             scheme:
               "com.googleusercontent.apps.958811154492-g1a16llqom5bhalnscncnjp6alee6m5l",
           },

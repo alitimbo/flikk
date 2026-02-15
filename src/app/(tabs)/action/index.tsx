@@ -59,7 +59,6 @@ export default function ActionIndex() {
   >(null);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isAiSubmitting, setIsAiSubmitting] = useState(false);
-  const [isAiMenuOpen, setIsAiMenuOpen] = useState(false);
   const aiPulse = useState(new Animated.Value(0))[0];
   const [aiImageOne, setAiImageOne] = useState<string | null>(null);
   const [aiImageTwo, setAiImageTwo] = useState<string | null>(null);
