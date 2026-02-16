@@ -36,21 +36,20 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Build Development APK (local) avec ANDROID_SDK_ROOT forcé
+      - name: Build Development APK (local)
         env:
           ANDROID_SDK_ROOT: /opt/android/sdk
-          # ANDROID_HOME: /opt/android/sdk   ← tu peux ajouter les deux si besoin
+          ANDROID_HOME: /opt/android/sdk   # Ajouté pour plus de robustesse (parfois Gradle le cherche sous ce nom)
         run: |
           eas build \
             --platform android \
             --profile ${{ github.event.inputs.profile || 'development' }} \
             --local \
             --non-interactive \
-            --no-progress \
-            --clear-cache \           # optionnel : force un build propre la 1re fois
+            --clear-cache \
             --output ./app-dev.apk
 
-      - name: Upload APK artifact (si le build réussit)
+      - name: Upload APK artifact (si succès)
         if: success()
         uses: actions/upload-artifact@v4
         with:
@@ -58,15 +57,14 @@ jobs:
           path: ./app-dev.apk
           retention-days: 7
 
-      - name: Message de fin (manuel)
+      - name: Message de fin
         if: always()
         run: |
           echo ""
           echo "Build terminé (ou échoué) !"
-          echo "Vérifie les logs ci-dessus pour l'erreur exacte."
           if [ -f ./app-dev.apk ]; then
-            echo "→ APK généré → Télécharge-le dans Artifacts"
+            echo "→ APK généré ! Télécharge-le dans la section 'Artifacts' ci-dessous."
           else
-            echo "→ Pas d'APK → regarde l'erreur Gradle ou prebuild"
+            echo "→ Échec → regarde les logs juste au-dessus (erreur prebuild/Gradle ?)."
+            echo "→ Relance via 'Run workflow' et partage les dernières lignes d'erreur si besoin."
           fi
-          echo "→ Pour relancer : onglet Actions → Run workflow"
