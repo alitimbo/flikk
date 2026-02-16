@@ -36,10 +36,17 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
+      - name: Créer android/local.properties AVANT build
+        run: |
+          mkdir -p android
+          echo "sdk.dir=/opt/android/sdk" > android/local.properties
+          echo "ANDROID_SDK_ROOT=/opt/android/sdk" >> android/local.properties  # redondant mais aide parfois
+          cat android/local.properties  # debug logs
+
       - name: Build Development APK (local)
         env:
           ANDROID_SDK_ROOT: /opt/android/sdk
-          ANDROID_HOME: /opt/android/sdk   # Ajouté pour plus de robustesse (parfois Gradle le cherche sous ce nom)
+          ANDROID_HOME: /opt/android/sdk
         run: |
           eas build \
             --platform android \
@@ -60,11 +67,9 @@ jobs:
       - name: Message de fin
         if: always()
         run: |
-          echo ""
-          echo "Build terminé (ou échoué) !"
+          echo "Build terminé ou échoué."
           if [ -f ./app-dev.apk ]; then
-            echo "→ APK généré ! Télécharge-le dans la section 'Artifacts' ci-dessous."
+            echo "APK OK → Télécharge dans Artifacts !"
           else
-            echo "→ Échec → regarde les logs juste au-dessus (erreur prebuild/Gradle ?)."
-            echo "→ Relance via 'Run workflow' et partage les dernières lignes d'erreur si besoin."
+            echo "Échec → Vérifie logs Gradle/prebuild ci-dessus."
           fi
