@@ -1,10 +1,10 @@
 name: Dev Build Android (manuel - local)
 
 on:
-  workflow_dispatch:          # ← Seulement quand tu cliques "Run workflow" manuellement
+  workflow_dispatch:
     inputs:
       profile:
-        description: 'Profil EAS à utiliser (development par défaut)'
+        description: 'Profil EAS à utiliser'
         required: false
         default: 'development'
         type: choice
@@ -24,26 +24,22 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'   # ou 'yarn' si tu utilises yarn
+          cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci    # ou yarn install --frozen-lockfile
+        run: npm ci
 
       - name: Setup Expo & EAS CLI
         uses: expo/expo-github-action@v8
         with:
           expo-version: latest
           eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}   # Toujours recommandé, même en local
+          token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Créer local.properties (important pour Gradle en local build)
-        run: |
-          echo "sdk.dir=/opt/android/sdk" > android/local.properties
-          # Si tu as besoin d'autres variables (ex: keystore, maps api key, etc.)
-          # echo "MY_SECRET_KEY=xxxx" >> android/local.properties
-          cat android/local.properties   # Pour debug (visible dans les logs)
-
-      - name: Build Development APK (local)
+      - name: Build Development APK (local) avec ANDROID_SDK_ROOT forcé
+        env:
+          ANDROID_SDK_ROOT: /opt/android/sdk
+          # ANDROID_HOME: /opt/android/sdk   ← tu peux ajouter les deux si besoin
         run: |
           eas build \
             --platform android \
@@ -51,19 +47,26 @@ jobs:
             --local \
             --non-interactive \
             --no-progress \
+            --clear-cache \           # optionnel : force un build propre la 1re fois
             --output ./app-dev.apk
 
-      - name: Upload APK artifact
+      - name: Upload APK artifact (si le build réussit)
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: dev-apk-${{ github.run_number }}
           path: ./app-dev.apk
-          retention-days: 7     # Tu peux télécharger pendant 7 jours
+          retention-days: 7
 
-      - name: Afficher infos de fin (manuel)
+      - name: Message de fin (manuel)
+        if: always()
         run: |
           echo ""
-          echo "Build terminé !"
-          echo "→ Télécharge l'APK dans l'onglet 'Artifacts' de ce run (en bas de page)"
-          echo "→ Installe-le sur ton téléphone Android"
-          echo "→ Lance 'npx expo start --dev-client' et connecte-toi via le dev menu"
+          echo "Build terminé (ou échoué) !"
+          echo "Vérifie les logs ci-dessus pour l'erreur exacte."
+          if [ -f ./app-dev.apk ]; then
+            echo "→ APK généré → Télécharge-le dans Artifacts"
+          else
+            echo "→ Pas d'APK → regarde l'erreur Gradle ou prebuild"
+          fi
+          echo "→ Pour relancer : onglet Actions → Run workflow"
