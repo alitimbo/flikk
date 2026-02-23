@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { FirebaseAuthTypes } from "@react-native-firebase/auth";
+/*
 import {
   PhoneAuthProvider,
   getAuth,
@@ -23,6 +24,8 @@ import {
   signInWithPhoneNumber,
   signOut,
 } from "@react-native-firebase/auth";
+ */
+import auth, { PhoneAuthProvider } from "@react-native-firebase/auth";
 import { FirebaseService } from "@/services/firebase/firebase-service";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
@@ -35,9 +38,12 @@ import { setLanguage } from "@/i18n";
 import { CustomOtpAuthService } from "@/services/firebase/custom-otp-auth-service";
 import { MMKVStorage } from "@/storage/mmkv";
 
-const OTP_AUTH_MODE = (process.env.EXPO_PUBLIC_OTP_AUTH_MODE || "hybrid").toLowerCase();
+const OTP_AUTH_MODE = (
+  process.env.EXPO_PUBLIC_OTP_AUTH_MODE || "hybrid"
+).toLowerCase();
 const USE_CUSTOM_OTP = OTP_AUTH_MODE !== "firebase";
-const USE_FIREBASE_FALLBACK = OTP_AUTH_MODE === "hybrid" || OTP_AUTH_MODE === "firebase";
+const USE_FIREBASE_FALLBACK =
+  OTP_AUTH_MODE === "hybrid" || OTP_AUTH_MODE === "firebase";
 const FIREBASE_VERIFICATION_ID_KEY = "auth.firebase.verificationId";
 const FIREBASE_PENDING_PHONE_KEY = "auth.firebase.pendingPhone";
 
@@ -56,7 +62,9 @@ export default function ProfilIndex() {
   const [firebaseVerificationId, setFirebaseVerificationId] = useState<
     string | null
   >(null);
-  const [otpStrategy, setOtpStrategy] = useState<"custom" | "firebase" | null>(null);
+  const [otpStrategy, setOtpStrategy] = useState<"custom" | "firebase" | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [resendSeconds, setResendSeconds] = useState(0);
@@ -100,14 +108,21 @@ export default function ProfilIndex() {
   );
 
   useEffect(() => {
+    /*
     const unsubscribe = onAuthStateChanged(FirebaseService.auth, (user) => {
+      setAuthUser(user);
+    });
+    */
+    const unsubscribe = auth().onAuthStateChanged((user) => {
       setAuthUser(user);
     });
     return unsubscribe;
   }, []);
 
   useEffect(() => {
-    const savedVerificationId = MMKVStorage.getItem(FIREBASE_VERIFICATION_ID_KEY);
+    const savedVerificationId = MMKVStorage.getItem(
+      FIREBASE_VERIFICATION_ID_KEY,
+    );
     const savedPhone = MMKVStorage.getItem(FIREBASE_PENDING_PHONE_KEY);
     if (savedVerificationId) {
       setFirebaseVerificationId(savedVerificationId);
@@ -199,15 +214,20 @@ export default function ProfilIndex() {
         throw new Error("OTP_CUSTOM_FAILED_NO_FALLBACK");
       }
 
+      /*
       const firebaseConfirmation = await signInWithPhoneNumber(
         FirebaseService.auth,
         fullPhone,
       );
+      */
+      const firebaseConfirmation =
+        await auth().signInWithPhoneNumber(fullPhone);
+
       setConfirmation(firebaseConfirmation);
       setFirebaseVerificationId(firebaseConfirmation.verificationId);
       MMKVStorage.setItem(
         FIREBASE_VERIFICATION_ID_KEY,
-        firebaseConfirmation.verificationId,
+        firebaseConfirmation.verificationId as string,
       );
       MMKVStorage.setItem(FIREBASE_PENDING_PHONE_KEY, phoneNumber.trim());
       setChallengeId(null);
@@ -234,7 +254,11 @@ export default function ProfilIndex() {
           firebaseVerificationId,
           smsCode.trim(),
         );
+
+        await auth().signInWithCredential(credential);
+        /*
         await signInWithCredential(getAuth(), credential);
+        */
       } else {
         throw new Error("NO_OTP_SESSION");
       }
@@ -262,7 +286,10 @@ export default function ProfilIndex() {
   ]);
 
   const handleSignOut = useCallback(async () => {
+    /*
     await signOut(FirebaseService.auth);
+    */
+    await auth().signOut();
   }, []);
 
   const handleToggleLanguage = useCallback(async () => {
