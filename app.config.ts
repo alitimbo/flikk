@@ -27,11 +27,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         data: [
           {
             scheme: "flikk",
-            host: "firebaseauth",
-            pathPrefix: "/link",
-          },
-          {
-            scheme: "com.flikk.app",
           },
         ],
         category: ["BROWSABLE", "DEFAULT"],
