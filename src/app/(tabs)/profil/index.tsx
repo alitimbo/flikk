@@ -25,6 +25,7 @@ import {
   signOut,
 } from "@react-native-firebase/auth";
  */
+import appCheck from "@react-native-firebase/app-check";
 import auth, { PhoneAuthProvider } from "@react-native-firebase/auth";
 import { FirebaseService } from "@/services/firebase/firebase-service";
 import { Feather, Ionicons } from "@expo/vector-icons";
@@ -220,6 +221,15 @@ export default function ProfilIndex() {
         fullPhone,
       );
       */
+
+      //console.log("App Check token:", await getToken(appCheckInstance));
+      const tokenResult = await appCheck().getToken(true);
+
+      if (!tokenResult?.token) {
+        throw new Error("App Check token manquant");
+      }
+
+      console.log("App Check token:", tokenResult?.token);
       const firebaseConfirmation =
         await auth().signInWithPhoneNumber(fullPhone);
 

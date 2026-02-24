@@ -1,5 +1,5 @@
 import { getApp } from "@react-native-firebase/app";
-import { initializeAppCheck } from "@react-native-firebase/app-check";
+import appCheck, { initializeAppCheck } from "@react-native-firebase/app-check";
 
 let initialized = false;
 
@@ -19,12 +19,19 @@ export async function initAppCheck() {
         },
         apple: {
           provider: shouldUseDebug ? "debug" : "deviceCheck",
-          ...(shouldUseDebug ? { debugToken: "" } : {}),
         },
       },
     },
     isTokenAutoRefreshEnabled: true,
   });
+
+  // 🔥 AJOUTE ÇA ICI
+  try {
+    const tokenResult = await appCheck().getToken(true);
+    //console.log("🔥 AppCheck token:", tokenResult?.token);
+  } catch (e) {
+    console.log("❌ AppCheck token error:", e);
+  }
 
   initialized = true;
 }
