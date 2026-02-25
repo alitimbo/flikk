@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import {
   FlatList,
   Image,
@@ -33,6 +33,51 @@ const VIDEO_ASPECT_RATIO = 9 / 16;
 
 const DEFAULT_MEDIA_TYPES: MediaLibrary.MediaTypeValue[] = ["photo", "video"];
 
+type AlbumListItem =
+  | { kind: "all"; id: "all"; title: string }
+  | { kind: "album"; id: string; title: string; album: MediaLibrary.Album };
+
+function buildAssetUniqueKey(asset: MediaLibrary.Asset): string {
+  const idPart = String(asset.id || "");
+  const uriPart = String(asset.uri || "");
+  return `${idPart}|${uriPart}`;
+}
+
+function dedupeAssets(items: MediaLibrary.Asset[]): MediaLibrary.Asset[] {
+  const uniqueMap = new Map<string, MediaLibrary.Asset>();
+  for (const asset of items) {
+    const key = buildAssetUniqueKey(asset);
+    if (!uniqueMap.has(key)) {
+      uniqueMap.set(key, asset);
+    }
+  }
+  return Array.from(uniqueMap.values());
+}
+
+function buildAssetListKey(asset: MediaLibrary.Asset, index: number): string {
+  const idPart = String(asset.id || "unknown-id");
+  const uriPart = String(asset.uri || "unknown-uri");
+  return `asset-${idPart}-${uriPart}-${index}`;
+}
+
+function dedupeAlbums(items: MediaLibrary.Album[]): MediaLibrary.Album[] {
+  const uniqueMap = new Map<string, MediaLibrary.Album>();
+  for (const album of items) {
+    const key = String(album.id || `${album.title}-${album.assetCount || 0}`);
+    if (!uniqueMap.has(key)) {
+      uniqueMap.set(key, album);
+    }
+  }
+  return Array.from(uniqueMap.values());
+}
+
+function buildAlbumListKey(item: AlbumListItem, index: number): string {
+  if (item.kind === "all") {
+    return "album-all";
+  }
+  return `album-${item.id}-${index}`;
+}
+
 export function MediaPicker({
   isVisible,
   onClose,
@@ -58,6 +103,18 @@ export function MediaPicker({
   const loadingRef = useRef(false);
   const [hasNextPage, setHasNextPage] = useState(true);
   const [endCursor, setEndCursor] = useState<string | undefined>(undefined);
+  const albumItems = useMemo<AlbumListItem[]>(
+    () => [
+      { kind: "all", id: "all", title: t("mediaPicker.recents") },
+      ...albums.map((album) => ({
+        kind: "album" as const,
+        id: String(album.id || album.title),
+        title: album.title,
+        album,
+      })),
+    ],
+    [albums, t],
+  );
 
   // 1. Initialiser le player
   const player = useVideoPlayer(null, (p) => {
@@ -97,7 +154,7 @@ export function MediaPicker({
       const allAlbums = await MediaLibrary.getAlbumsAsync({
         includeSmartAlbums: true,
       });
-      setAlbums(allAlbums);
+      setAlbums(dedupeAlbums(allAlbums));
     } catch (err) {
       console.error("Flikk Error [loadAlbums]:", err);
     }
@@ -122,9 +179,10 @@ export function MediaPicker({
 
         const page = await MediaLibrary.getAssetsAsync(options);
 
-        setAssets((prev) =>
-          refresh ? page.assets : [...prev, ...page.assets],
-        );
+        setAssets((prev) => {
+          const mergedAssets = refresh ? page.assets : [...prev, ...page.assets];
+          return dedupeAssets(mergedAssets);
+        });
         setEndCursor(page.endCursor);
         setHasNextPage(page.hasNextPage);
       } catch (err) {
@@ -215,27 +273,25 @@ export function MediaPicker({
 
           <FlatList
             horizontal
-            data={[{ id: "all", title: t("mediaPicker.recents") }, ...albums]}
-            keyExtractor={(item) => item.id}
+            data={albumItems}
+            keyExtractor={(item, index) => buildAlbumListKey(item, index)}
             showsHorizontalScrollIndicator={false}
             renderItem={({ item }) => (
               <Pressable
                 onPress={() =>
-                  setSelectedAlbum(
-                    item.id === "all" ? null : (item as MediaLibrary.Album),
-                  )
+                  setSelectedAlbum(item.kind === "all" ? null : item.album)
                 }
                 className={`ml-4 px-5 py-2 rounded-full ${
-                  (!selectedAlbum && item.id === "all") ||
-                  selectedAlbum?.id === item.id
+                  (item.kind === "all" && !selectedAlbum) ||
+                  (item.kind === "album" && selectedAlbum?.id === item.album.id)
                     ? "bg-[#CCFF00]"
                     : "bg-white/10"
                 }`}
               >
                 <Text
                   className={`font-medium ${
-                    (!selectedAlbum && item.id === "all") ||
-                    selectedAlbum?.id === item.id
+                    (item.kind === "all" && !selectedAlbum) ||
+                    (item.kind === "album" && selectedAlbum?.id === item.album.id)
                       ? "text-black"
                       : "text-white"
                   }`}
@@ -251,7 +307,7 @@ export function MediaPicker({
         <FlatList
           data={assets}
           renderItem={renderItem}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item, index) => buildAssetListKey(item, index)}
           numColumns={COLUMN_COUNT}
           onEndReached={() => loadAssets()}
           onEndReachedThreshold={0.5}

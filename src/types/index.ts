@@ -143,13 +143,17 @@ export interface PaymentStatusResponse {
 }
 
 export interface OtpStartRequest {
-  phoneNumber: string;
+  channel?: OtpChannel;
+  phoneNumber?: string;
+  email?: string;
 }
 
 export interface OtpStartResponse {
   challengeId: string;
   expiresInSec: number;
   resendAfterSec: number;
+  channel?: OtpChannel;
+  maskedTarget?: string;
 }
 
 export interface OtpVerifyRequest {
@@ -161,7 +165,10 @@ export interface OtpVerifyResponse {
   customToken: string;
   uid: string;
   isNewUser: boolean;
+  channel?: OtpChannel;
 }
+
+export type OtpChannel = "sms" | "email";
 
 export interface Order {
   orderId: string;

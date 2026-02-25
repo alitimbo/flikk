@@ -13,11 +13,27 @@ export class CustomOtpAuthService {
   }
 
   static async requestOtpCode(phoneNumber: string): Promise<OtpStartResponse> {
+    return this.requestOtpChallenge({
+      channel: "sms",
+      phoneNumber,
+    });
+  }
+
+  static async requestOtpCodeByEmail(email: string): Promise<OtpStartResponse> {
+    return this.requestOtpChallenge({
+      channel: "email",
+      email,
+    });
+  }
+
+  static async requestOtpChallenge(
+    payload: OtpStartRequest,
+  ): Promise<OtpStartResponse> {
     const call = httpsCallable<OtpStartRequest, OtpStartResponse>(
       this.functions,
       "requestOtpCode",
     );
-    const result = await call({ phoneNumber });
+    const result = await call(payload);
     return result.data;
   }
 

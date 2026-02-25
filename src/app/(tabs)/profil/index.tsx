@@ -15,28 +15,18 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { FirebaseAuthTypes } from "@react-native-firebase/auth";
-/*
-import {
-  PhoneAuthProvider,
-  getAuth,
-  onAuthStateChanged,
-  signInWithCredential,
-  signInWithPhoneNumber,
-  signOut,
-} from "@react-native-firebase/auth";
- */
 import appCheck from "@react-native-firebase/app-check";
 import auth, { PhoneAuthProvider } from "@react-native-firebase/auth";
-import { FirebaseService } from "@/services/firebase/firebase-service";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "expo-router";
 import { MediaPicker } from "@/components/ui/MediaPicker";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import type { WithdrawalMethod } from "@/types";
+import type { OtpChannel, WithdrawalMethod } from "@/types";
 import * as WebBrowser from "expo-web-browser";
 import { setLanguage } from "@/i18n";
 import { CustomOtpAuthService } from "@/services/firebase/custom-otp-auth-service";
+import { EmailAuthService } from "@/services/firebase/email-auth-service";
 import { MMKVStorage } from "@/storage/mmkv";
 
 const OTP_AUTH_MODE = (
@@ -47,6 +37,10 @@ const USE_FIREBASE_FALLBACK =
   OTP_AUTH_MODE === "hybrid" || OTP_AUTH_MODE === "firebase";
 const FIREBASE_VERIFICATION_ID_KEY = "auth.firebase.verificationId";
 const FIREBASE_PENDING_PHONE_KEY = "auth.firebase.pendingPhone";
+const DEFAULT_AUTH_METHOD = (
+  process.env.EXPO_PUBLIC_AUTH_DEFAULT_METHOD || "email"
+).toLowerCase();
+const MIN_PASSWORD_LENGTH = 6;
 
 export default function ProfilIndex() {
   const insets = useSafeAreaInsets();
@@ -55,7 +49,16 @@ export default function ProfilIndex() {
   const [authUser, setAuthUser] = useState<FirebaseAuthTypes.User | null>(null);
 
   // Login State
+  const [authMethod, setAuthMethod] = useState<"phone" | "email">(
+    DEFAULT_AUTH_METHOD === "phone" ? "phone" : "email",
+  );
+  const [emailMode, setEmailMode] = useState<"login" | "signup" | "otp">(
+    "login",
+  );
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authPasswordConfirm, setAuthPasswordConfirm] = useState("");
   const [smsCode, setSmsCode] = useState("");
   const [challengeId, setChallengeId] = useState<string | null>(null);
   const [confirmation, setConfirmation] =
@@ -66,8 +69,10 @@ export default function ProfilIndex() {
   const [otpStrategy, setOtpStrategy] = useState<"custom" | "firebase" | null>(
     null,
   );
+  const [otpChannel, setOtpChannel] = useState<OtpChannel | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [resendSeconds, setResendSeconds] = useState(0);
   const [countryIndex, setCountryIndex] = useState(0);
   const [showCountryList, setShowCountryList] = useState(false);
@@ -109,11 +114,6 @@ export default function ProfilIndex() {
   );
 
   useEffect(() => {
-    /*
-    const unsubscribe = onAuthStateChanged(FirebaseService.auth, (user) => {
-      setAuthUser(user);
-    });
-    */
     const unsubscribe = auth().onAuthStateChanged((user) => {
       setAuthUser(user);
     });
@@ -128,6 +128,8 @@ export default function ProfilIndex() {
     if (savedVerificationId) {
       setFirebaseVerificationId(savedVerificationId);
       setOtpStrategy("firebase");
+      setOtpChannel("sms");
+      setAuthMethod("phone");
     }
     if (savedPhone && !phoneNumber) {
       setPhoneNumber(savedPhone);
@@ -170,13 +172,44 @@ export default function ProfilIndex() {
     };
   }, [resendSeconds]);
 
-  const canSendCode = useMemo(
+  const normalizedAuthEmail = useMemo(
+    () => authEmail.trim().toLowerCase(),
+    [authEmail],
+  );
+  const isAuthEmailValid = useMemo(
+    () => EmailAuthService.isEmailValid(normalizedAuthEmail),
+    [normalizedAuthEmail],
+  );
+  const canSendPhoneCode = useMemo(
     () => phoneNumber.trim().length >= 8 && resendSeconds === 0,
     [phoneNumber, resendSeconds],
+  );
+  const canSendEmailOtp = useMemo(
+    () => isAuthEmailValid && resendSeconds === 0,
+    [isAuthEmailValid, resendSeconds],
+  );
+  const canSignInWithEmailPassword = useMemo(
+    () =>
+      isAuthEmailValid && authPassword.trim().length >= MIN_PASSWORD_LENGTH,
+    [isAuthEmailValid, authPassword],
+  );
+  const canSignUpWithEmailPassword = useMemo(
+    () =>
+      isAuthEmailValid &&
+      authPassword.trim().length >= MIN_PASSWORD_LENGTH &&
+      authPassword === authPasswordConfirm,
+    [isAuthEmailValid, authPassword, authPasswordConfirm],
   );
   const hasPendingOtpChallenge = useMemo(
     () => !!challengeId || !!confirmation || !!firebaseVerificationId,
     [challengeId, confirmation, firebaseVerificationId],
+  );
+  const isPendingEmailOtp = useMemo(
+    () =>
+      hasPendingOtpChallenge &&
+      otpChannel === "email" &&
+      otpStrategy === "custom",
+    [hasPendingOtpChallenge, otpChannel, otpStrategy],
   );
   const canConfirm = useMemo(() => smsCode.trim().length >= 4, [smsCode]);
   const currentLanguage = useMemo(
@@ -191,9 +224,49 @@ export default function ProfilIndex() {
       withdrawalNumber.trim().length > 0 &&
       !!logoUri);
 
+  const resetOtpSession = useCallback(() => {
+    setChallengeId(null);
+    setConfirmation(null);
+    setFirebaseVerificationId(null);
+    MMKVStorage.removeItem(FIREBASE_VERIFICATION_ID_KEY);
+    MMKVStorage.removeItem(FIREBASE_PENDING_PHONE_KEY);
+    setOtpStrategy(null);
+    setOtpChannel(null);
+    setSmsCode("");
+    setResendSeconds(0);
+  }, []);
+
+  const handleSelectAuthMethod = useCallback(
+    (nextMethod: "phone" | "email") => {
+      if (nextMethod === authMethod) {
+        return;
+      }
+      resetOtpSession();
+      setAuthMethod(nextMethod);
+      setShowCountryList(false);
+      setErrorMessage(null);
+      setInfoMessage(null);
+    },
+    [authMethod, resetOtpSession],
+  );
+
+  const handleSelectEmailMode = useCallback(
+    (nextMode: "login" | "signup" | "otp") => {
+      if (nextMode === emailMode) {
+        return;
+      }
+      resetOtpSession();
+      setEmailMode(nextMode);
+      setErrorMessage(null);
+      setInfoMessage(null);
+    },
+    [emailMode, resetOtpSession],
+  );
+
   const handleSendCode = useCallback(async () => {
     setErrorMessage(null);
-    if (!canSendCode) return;
+    setInfoMessage(null);
+    if (!canSendPhoneCode) return;
     try {
       setIsLoading(true);
       const fullPhone = `${COUNTRIES[countryIndex].dial}${phoneNumber.trim()}`;
@@ -204,6 +277,7 @@ export default function ProfilIndex() {
           setChallengeId(result.challengeId);
           setConfirmation(null);
           setOtpStrategy("custom");
+          setOtpChannel("sms");
           setResendSeconds(Number(result.resendAfterSec || 30));
           return;
         } catch (customError) {
@@ -215,14 +289,6 @@ export default function ProfilIndex() {
         throw new Error("OTP_CUSTOM_FAILED_NO_FALLBACK");
       }
 
-      /*
-      const firebaseConfirmation = await signInWithPhoneNumber(
-        FirebaseService.auth,
-        fullPhone,
-      );
-      */
-
-      //console.log("App Check token:", await getToken(appCheckInstance));
       const tokenResult = await appCheck().getToken(true);
 
       if (!tokenResult?.token) {
@@ -242,6 +308,7 @@ export default function ProfilIndex() {
       MMKVStorage.setItem(FIREBASE_PENDING_PHONE_KEY, phoneNumber.trim());
       setChallengeId(null);
       setOtpStrategy("firebase");
+      setOtpChannel("sms");
       setResendSeconds(30);
     } catch (error) {
       console.log("Error sending code", error);
@@ -249,14 +316,110 @@ export default function ProfilIndex() {
     } finally {
       setIsLoading(false);
     }
-  }, [canSendCode, phoneNumber, countryIndex, COUNTRIES, t]);
+  }, [canSendPhoneCode, phoneNumber, countryIndex, COUNTRIES, t]);
+
+  const handleSendEmailOtp = useCallback(async () => {
+    setErrorMessage(null);
+    setInfoMessage(null);
+    if (!canSendEmailOtp) return;
+
+    try {
+      setIsLoading(true);
+      const result =
+        await EmailAuthService.requestOtpCodeByEmail(normalizedAuthEmail);
+      setChallengeId(result.challengeId);
+      setConfirmation(null);
+      setFirebaseVerificationId(null);
+      setOtpStrategy("custom");
+      setOtpChannel("email");
+      setEmailMode("otp");
+      setResendSeconds(Number(result.resendAfterSec || 30));
+    } catch (error) {
+      console.log("Error sending email OTP", error);
+      setErrorMessage(t("profile.login.errorSendEmail"));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [canSendEmailOtp, normalizedAuthEmail, t]);
+
+  const handleEmailSignIn = useCallback(async () => {
+    setErrorMessage(null);
+    setInfoMessage(null);
+    if (!canSignInWithEmailPassword) return;
+
+    try {
+      setIsLoading(true);
+      await EmailAuthService.signInWithEmailAndPassword(
+        normalizedAuthEmail,
+        authPassword,
+      );
+    } catch (error) {
+      console.log("Email sign in failed", error);
+      setErrorMessage(t("profile.login.errorEmailLogin"));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [canSignInWithEmailPassword, normalizedAuthEmail, authPassword, t]);
+
+  const handleEmailSignUp = useCallback(async () => {
+    setErrorMessage(null);
+    setInfoMessage(null);
+
+    if (authPassword !== authPasswordConfirm) {
+      setErrorMessage(t("profile.login.errorPasswordMismatch"));
+      return;
+    }
+    if (!canSignUpWithEmailPassword) return;
+
+    try {
+      setIsLoading(true);
+      await EmailAuthService.signUpWithEmailAndPassword(
+        normalizedAuthEmail,
+        authPassword,
+      );
+    } catch (error) {
+      console.log("Email sign up failed", error);
+      setErrorMessage(t("profile.login.errorEmailSignup"));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [
+    authPassword,
+    authPasswordConfirm,
+    canSignUpWithEmailPassword,
+    normalizedAuthEmail,
+    t,
+  ]);
+
+  const handleResetPassword = useCallback(async () => {
+    setErrorMessage(null);
+    setInfoMessage(null);
+    if (!isAuthEmailValid) return;
+
+    try {
+      setIsLoading(true);
+      await EmailAuthService.sendPasswordReset(normalizedAuthEmail);
+      setInfoMessage(t("profile.login.resetSent"));
+    } catch (error) {
+      console.log("Password reset failed", error);
+      setErrorMessage(t("profile.login.errorResetPassword"));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isAuthEmailValid, normalizedAuthEmail, t]);
 
   const handleConfirmCode = useCallback(async () => {
     if (!canConfirm) return;
     try {
+      setErrorMessage(null);
+      setInfoMessage(null);
       setIsLoading(true);
       if (otpStrategy === "custom" && challengeId) {
-        await CustomOtpAuthService.signInWithOtp(challengeId, smsCode.trim());
+        if (otpChannel === "email") {
+          await EmailAuthService.signInWithEmailOtp(challengeId, smsCode.trim());
+        } else {
+          await CustomOtpAuthService.signInWithOtp(challengeId, smsCode.trim());
+        }
       } else if (otpStrategy === "firebase" && confirmation) {
         await confirmation.confirm(smsCode.trim());
       } else if (otpStrategy === "firebase" && firebaseVerificationId) {
@@ -266,22 +429,17 @@ export default function ProfilIndex() {
         );
 
         await auth().signInWithCredential(credential);
-        /*
-        await signInWithCredential(getAuth(), credential);
-        */
       } else {
         throw new Error("NO_OTP_SESSION");
       }
-      setSmsCode("");
-      setChallengeId(null);
-      setConfirmation(null);
-      setFirebaseVerificationId(null);
-      MMKVStorage.removeItem(FIREBASE_VERIFICATION_ID_KEY);
-      MMKVStorage.removeItem(FIREBASE_PENDING_PHONE_KEY);
-      setOtpStrategy(null);
+      resetOtpSession();
     } catch (error) {
       console.log("Error confirming code", error);
-      setErrorMessage(t("profile.login.errorCode"));
+      setErrorMessage(
+        otpChannel === "email"
+          ? t("profile.login.errorCodeEmail")
+          : t("profile.login.errorCode"),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -291,14 +449,13 @@ export default function ProfilIndex() {
     confirmation,
     firebaseVerificationId,
     otpStrategy,
+    otpChannel,
+    resetOtpSession,
     smsCode,
     t,
   ]);
 
   const handleSignOut = useCallback(async () => {
-    /*
-    await signOut(FirebaseService.auth);
-    */
     await auth().signOut();
   }, []);
 
@@ -698,7 +855,11 @@ export default function ProfilIndex() {
                   : `${userProfile?.firstName} ${userProfile?.lastName}`}
               </Text>
               <Text className="mt-1 font-body text-sm text-flikk-text-muted">
-                {userProfile?.phoneNumber || authUser.phoneNumber}
+                {userProfile?.phoneNumber ||
+                  authUser.phoneNumber ||
+                  userProfile?.email ||
+                  authUser.email ||
+                  "-"}
               </Text>
             </View>
           </View>
@@ -857,107 +1018,324 @@ export default function ProfilIndex() {
         </View>
 
         <View className="mt-10 rounded-3xl border border-white/10 bg-flikk-card p-6">
-          {!hasPendingOtpChallenge ? (
-            <>
-              <Text className="font-display text-xl text-flikk-text">
-                {t("profile.login.title")}
+          <View className="mb-6 flex-row rounded-2xl border border-white/10 bg-flikk-dark p-1">
+            <Pressable
+              className={`h-11 flex-1 items-center justify-center rounded-xl ${
+                authMethod === "phone" ? "bg-flikk-lime" : ""
+              }`}
+              onPress={() => handleSelectAuthMethod("phone")}
+            >
+              <Text
+                className={`font-display text-sm ${
+                  authMethod === "phone" ? "text-flikk-dark" : "text-flikk-text"
+                }`}
+              >
+                {t("profile.login.methodPhone")}
               </Text>
-              <Text className="mt-2 font-body text-sm leading-5 text-flikk-text-muted">
-                {t("profile.login.subtitle")}
+            </Pressable>
+            <Pressable
+              className={`h-11 flex-1 items-center justify-center rounded-xl ${
+                authMethod === "email" ? "bg-flikk-lime" : ""
+              }`}
+              onPress={() => handleSelectAuthMethod("email")}
+            >
+              <Text
+                className={`font-display text-sm ${
+                  authMethod === "email" ? "text-flikk-dark" : "text-flikk-text"
+                }`}
+              >
+                {t("profile.login.methodEmail")}
               </Text>
+            </Pressable>
+          </View>
 
-              <View className="mt-6">
-                <Text className="mb-2 font-body text-xs text-flikk-text-muted">
-                  {t("profile.login.phoneLabel")}
+          {!hasPendingOtpChallenge ? (
+            authMethod === "phone" ? (
+              <>
+                <Text className="font-display text-xl text-flikk-text">
+                  {t("profile.login.title")}
                 </Text>
-                <View className="h-14 flex-row">
-                  <Pressable
-                    className="mr-3 min-w-[90px] flex-row items-center justify-center rounded-2xl border border-white/10 bg-flikk-dark px-3"
-                    onPress={() => setShowCountryList(!showCountryList)}
-                  >
-                    <Text className="mr-1 text-base">
-                      {COUNTRIES[countryIndex].code === "NE" ? "🇳🇪" : "🇲🇱"}
-                    </Text>
-                    <Text className="font-body text-sm text-flikk-text">
-                      {COUNTRIES[countryIndex].dial}
-                    </Text>
-                    <Feather
-                      name="chevron-down"
-                      size={14}
-                      color="#B3B3B3"
-                      style={{ marginLeft: 4 }}
+                <Text className="mt-2 font-body text-sm leading-5 text-flikk-text-muted">
+                  {t("profile.login.subtitle")}
+                </Text>
+
+                <View className="mt-6">
+                  <Text className="mb-2 font-body text-xs text-flikk-text-muted">
+                    {t("profile.login.phoneLabel")}
+                  </Text>
+                  <View className="h-14 flex-row">
+                    <Pressable
+                      className="mr-3 min-w-[90px] flex-row items-center justify-center rounded-2xl border border-white/10 bg-flikk-dark px-3"
+                      onPress={() => setShowCountryList(!showCountryList)}
+                    >
+                      <Text className="font-body text-sm text-flikk-text">
+                        {COUNTRIES[countryIndex].code}
+                      </Text>
+                      <Text className="ml-1 font-body text-sm text-flikk-text">
+                        {COUNTRIES[countryIndex].dial}
+                      </Text>
+                      <Feather
+                        name="chevron-down"
+                        size={14}
+                        color="#B3B3B3"
+                        style={{ marginLeft: 4 }}
+                      />
+                    </Pressable>
+                    <TextInput
+                      className="flex-1 rounded-2xl border border-white/10 bg-flikk-dark px-4 font-body text-base text-flikk-text"
+                      placeholder="90 12 34 56"
+                      placeholderTextColor="#666666"
+                      keyboardType="phone-pad"
+                      value={phoneNumber}
+                      onChangeText={setPhoneNumber}
+                      selectionColor="#CCFF00"
                     />
+                  </View>
+
+                  {showCountryList && (
+                    <View className="absolute left-0 top-[85px] z-50 w-[220px] rounded-2xl border border-white/10 bg-[#2A2A2A] p-1 shadow-lg">
+                      {COUNTRIES.map((country, index) => (
+                        <Pressable
+                          key={country.code}
+                          className={`flex-row items-center justify-between rounded-xl px-4 py-3 ${
+                            index === countryIndex ? "bg-white/10" : ""
+                          }`}
+                          onPress={() => {
+                            setCountryIndex(index);
+                            setShowCountryList(false);
+                          }}
+                        >
+                          <Text className="font-body text-sm text-flikk-text">
+                            {country.code} {country.name}
+                          </Text>
+                          <Text className="font-body text-xs text-flikk-text-muted">
+                            {country.dial}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                </View>
+
+                <Pressable
+                  className={`mt-6 h-14 items-center justify-center rounded-full bg-flikk-lime ${
+                    !canSendPhoneCode ? "opacity-50" : ""
+                  }`}
+                  onPress={handleSendCode}
+                  disabled={!canSendPhoneCode || isLoading}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color="#121212" />
+                  ) : (
+                    <Text className="font-display text-base text-flikk-dark">
+                      {resendSeconds > 0
+                        ? t("profile.login.buttonWait", {
+                            seconds: resendSeconds,
+                          })
+                        : t("profile.login.button")}
+                    </Text>
+                  )}
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Text className="font-display text-xl text-flikk-text">
+                  {t("profile.login.emailTitle")}
+                </Text>
+                <Text className="mt-2 font-body text-sm leading-5 text-flikk-text-muted">
+                  {t("profile.login.emailSubtitle")}
+                </Text>
+
+                <View className="mt-5 flex-row rounded-2xl border border-white/10 bg-flikk-dark p-1">
+                  <Pressable
+                    className={`h-10 flex-1 items-center justify-center rounded-xl ${
+                      emailMode === "login" ? "bg-flikk-lime" : ""
+                    }`}
+                    onPress={() => handleSelectEmailMode("login")}
+                  >
+                    <Text
+                      className={`font-display text-xs ${
+                        emailMode === "login"
+                          ? "text-flikk-dark"
+                          : "text-flikk-text"
+                      }`}
+                    >
+                      {t("profile.login.emailModeLogin")}
+                    </Text>
                   </Pressable>
+                  <Pressable
+                    className={`h-10 flex-1 items-center justify-center rounded-xl ${
+                      emailMode === "signup" ? "bg-flikk-lime" : ""
+                    }`}
+                    onPress={() => handleSelectEmailMode("signup")}
+                  >
+                    <Text
+                      className={`font-display text-xs ${
+                        emailMode === "signup"
+                          ? "text-flikk-dark"
+                          : "text-flikk-text"
+                      }`}
+                    >
+                      {t("profile.login.emailModeSignup")}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    className={`h-10 flex-1 items-center justify-center rounded-xl ${
+                      emailMode === "otp" ? "bg-flikk-lime" : ""
+                    }`}
+                    onPress={() => handleSelectEmailMode("otp")}
+                  >
+                    <Text
+                      className={`font-display text-xs ${
+                        emailMode === "otp"
+                          ? "text-flikk-dark"
+                          : "text-flikk-text"
+                      }`}
+                    >
+                      {t("profile.login.emailModeOtp")}
+                    </Text>
+                  </Pressable>
+                </View>
+
+                <View className="mt-6">
+                  <Text className="mb-2 font-body text-xs text-flikk-text-muted">
+                    {t("profile.login.emailLabel")}
+                  </Text>
                   <TextInput
-                    className="flex-1 rounded-2xl border border-white/10 bg-flikk-dark px-4 font-body text-base text-flikk-text"
-                    placeholder="90 12 34 56"
+                    className="h-14 rounded-2xl border border-white/10 bg-flikk-dark px-4 font-body text-base text-flikk-text"
+                    placeholder="email@example.com"
                     placeholderTextColor="#666666"
-                    keyboardType="phone-pad"
-                    value={phoneNumber}
-                    onChangeText={setPhoneNumber}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    value={authEmail}
+                    onChangeText={setAuthEmail}
                     selectionColor="#CCFF00"
                   />
                 </View>
 
-                {showCountryList && (
-                  <View className="absolute left-0 top-[85px] z-50 w-[200px] rounded-2xl border border-white/10 bg-[#2A2A2A] p-1 shadow-lg">
-                    {COUNTRIES.map((country, index) => (
-                      <Pressable
-                        key={country.code}
-                        className={`flex-row items-center justify-between rounded-xl px-4 py-3 ${
-                          index === countryIndex ? "bg-white/10" : ""
-                        }`}
-                        onPress={() => {
-                          setCountryIndex(index);
-                          setShowCountryList(false);
-                        }}
-                      >
-                        <Text className="font-body text-sm text-flikk-text">
-                          {country.code === "NE" ? "🇳🇪" : "🇲🇱"} {country.name}
-                        </Text>
-                        <Text className="font-body text-xs text-flikk-text-muted">
-                          {country.dial}
-                        </Text>
-                      </Pressable>
-                    ))}
+                {emailMode !== "otp" && (
+                  <View className="mt-4">
+                    <Text className="mb-2 font-body text-xs text-flikk-text-muted">
+                      {t("profile.login.passwordLabel")}
+                    </Text>
+                    <TextInput
+                      className="h-14 rounded-2xl border border-white/10 bg-flikk-dark px-4 font-body text-base text-flikk-text"
+                      placeholder="******"
+                      placeholderTextColor="#666666"
+                      secureTextEntry
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      value={authPassword}
+                      onChangeText={setAuthPassword}
+                      selectionColor="#CCFF00"
+                    />
                   </View>
                 )}
-              </View>
 
-              <Pressable
-                className={`mt-6 h-14 items-center justify-center rounded-full bg-flikk-lime ${
-                  !canSendCode ? "opacity-50" : ""
-                }`}
-                onPress={handleSendCode}
-                disabled={!canSendCode || isLoading}
-              >
-                {isLoading ? (
-                  <ActivityIndicator color="#121212" />
-                ) : (
-                  <Text className="font-display text-base text-flikk-dark">
-                    {resendSeconds > 0
-                      ? t("profile.login.buttonWait", {
-                          seconds: resendSeconds,
-                        })
-                      : t("profile.login.button")}
-                  </Text>
+                {emailMode === "signup" && (
+                  <View className="mt-4">
+                    <Text className="mb-2 font-body text-xs text-flikk-text-muted">
+                      {t("profile.login.passwordConfirmLabel")}
+                    </Text>
+                    <TextInput
+                      className="h-14 rounded-2xl border border-white/10 bg-flikk-dark px-4 font-body text-base text-flikk-text"
+                      placeholder="******"
+                      placeholderTextColor="#666666"
+                      secureTextEntry
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      value={authPasswordConfirm}
+                      onChangeText={setAuthPasswordConfirm}
+                      selectionColor="#CCFF00"
+                    />
+                  </View>
                 )}
-              </Pressable>
-            </>
+
+                <Pressable
+                  className={`mt-6 h-14 items-center justify-center rounded-full bg-flikk-lime ${
+                    (emailMode === "login" && !canSignInWithEmailPassword) ||
+                    (emailMode === "signup" && !canSignUpWithEmailPassword) ||
+                    (emailMode === "otp" && !canSendEmailOtp)
+                      ? "opacity-50"
+                      : ""
+                  }`}
+                  onPress={() => {
+                    if (emailMode === "login") {
+                      void handleEmailSignIn();
+                      return;
+                    }
+                    if (emailMode === "signup") {
+                      void handleEmailSignUp();
+                      return;
+                    }
+                    void handleSendEmailOtp();
+                  }}
+                  disabled={
+                    isLoading ||
+                    (emailMode === "login" && !canSignInWithEmailPassword) ||
+                    (emailMode === "signup" && !canSignUpWithEmailPassword) ||
+                    (emailMode === "otp" && !canSendEmailOtp)
+                  }
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color="#121212" />
+                  ) : (
+                    <Text className="font-display text-base text-flikk-dark">
+                      {emailMode === "login"
+                        ? t("profile.login.emailSignInButton")
+                        : emailMode === "signup"
+                          ? t("profile.login.emailSignUpButton")
+                          : resendSeconds > 0
+                            ? t("profile.login.buttonWait", {
+                                seconds: resendSeconds,
+                              })
+                            : t("profile.login.emailOtpButton")}
+                    </Text>
+                  )}
+                </Pressable>
+
+                {emailMode === "login" && (
+                  <Pressable
+                    className="mt-4 items-center p-2"
+                    onPress={() => {
+                      void handleResetPassword();
+                    }}
+                    disabled={!isAuthEmailValid || isLoading}
+                  >
+                    <Text
+                      className={`font-body text-sm ${
+                        !isAuthEmailValid || isLoading
+                          ? "text-flikk-text-muted/50"
+                          : "text-flikk-text-muted"
+                      }`}
+                    >
+                      {t("profile.login.resetPassword")}
+                    </Text>
+                  </Pressable>
+                )}
+              </>
+            )
           ) : (
             <>
               <Text className="font-display text-xl text-flikk-text">
                 {t("profile.login.verifyTitle")}
               </Text>
               <Text className="mt-2 font-body text-sm leading-5 text-flikk-text-muted">
-                {t("profile.login.verifySubtitle", {
-                  phone: `${COUNTRIES[countryIndex].dial} ${phoneNumber}`,
-                })}
+                {isPendingEmailOtp
+                  ? t("profile.login.verifySubtitleEmail", {
+                      email: normalizedAuthEmail,
+                    })
+                  : t("profile.login.verifySubtitle", {
+                      phone: `${COUNTRIES[countryIndex].dial} ${phoneNumber}`,
+                    })}
               </Text>
 
               <View className="mt-6">
                 <Text className="mb-2 font-body text-xs text-flikk-text-muted">
-                  {t("profile.login.codeLabel")}
+                  {isPendingEmailOtp
+                    ? t("profile.login.codeEmailLabel")
+                    : t("profile.login.codeLabel")}
                 </Text>
                 <TextInput
                   className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-dark px-4 text-center font-body text-2xl tracking-[8px] text-flikk-text"
@@ -990,25 +1368,21 @@ export default function ProfilIndex() {
                 )}
               </Pressable>
 
-              <Pressable
-                className="mt-4 items-center p-4"
-                onPress={() => {
-                  setChallengeId(null);
-                  setConfirmation(null);
-                  setFirebaseVerificationId(null);
-                  MMKVStorage.removeItem(FIREBASE_VERIFICATION_ID_KEY);
-                  MMKVStorage.removeItem(FIREBASE_PENDING_PHONE_KEY);
-                  setOtpStrategy(null);
-                  setSmsCode("");
-                }}
-              >
+              <Pressable className="mt-4 items-center p-4" onPress={resetOtpSession}>
                 <Text className="font-body text-sm text-flikk-text-muted">
-                  {t("profile.login.changeNumber")}
+                  {isPendingEmailOtp
+                    ? t("profile.login.changeEmail")
+                    : t("profile.login.changeNumber")}
                 </Text>
               </Pressable>
             </>
           )}
 
+          {infoMessage && (
+            <Text className="mt-4 text-center font-body text-xs text-[#4ADE80]">
+              {infoMessage}
+            </Text>
+          )}
           {errorMessage && (
             <Text className="mt-4 text-center font-body text-xs text-[#FF4D6D]">
               {errorMessage}
@@ -1094,3 +1468,5 @@ function BenefitItem({
     </View>
   );
 }
+
+

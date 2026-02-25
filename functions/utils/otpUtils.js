@@ -32,6 +32,19 @@ function normalizePhoneNumber(input) {
   return candidate;
 }
 
+function normalizeEmail(input) {
+  const raw = String(input || "").trim().toLowerCase();
+  if (!raw) {
+    return null;
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw)) {
+    return null;
+  }
+
+  return raw;
+}
+
 function generateOtpCode() {
   const max = 10 ** OTP_CODE_LENGTH;
   const value = crypto.randomInt(0, max);
@@ -67,13 +80,29 @@ function challengeDocId() {
   return `otp_${Date.now()}_${crypto.randomBytes(6).toString("hex")}`;
 }
 
-function rateLimitDocId(phoneE164) {
-  return `p_${phoneE164.replace(/\D/g, "")}`;
+function sanitizeRateIdentifier(identifier) {
+  return String(identifier || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function rateLimitDocId(channelOrIdentifier, maybeIdentifier) {
+  const channel = maybeIdentifier ? channelOrIdentifier : "sms";
+  const identifier = maybeIdentifier || channelOrIdentifier;
+  const safeChannel = channel === "email" ? "email" : "sms";
+  const safeIdentifier = sanitizeRateIdentifier(identifier);
+
+  if (!safeIdentifier) {
+    throw new Error("INVALID_RATE_IDENTIFIER");
+  }
+
+  return `${safeChannel}_${safeIdentifier}`;
 }
 
 module.exports = {
   OTP_CODE_LENGTH,
   normalizePhoneNumber,
+  normalizeEmail,
   generateOtpCode,
   createOtpHash,
   verifyOtpCode,
