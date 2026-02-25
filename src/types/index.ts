@@ -20,7 +20,9 @@ export type WithdrawalMethod =
   | "wave"
   | "airtel"
   | "zamani"
-  | "moov";
+  | "moov"
+  | "orangeMali"
+  | "orangeBurkina";
 
 export interface UserProfile {
   uid: string;

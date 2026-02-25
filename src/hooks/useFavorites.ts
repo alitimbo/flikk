@@ -7,6 +7,63 @@ type FavoriteQueryResult = {
   ids: string[];
 };
 
+function parseFirestoreError(error: unknown) {
+  const fallback = {
+    code: "unknown",
+    message: "Unknown error",
+    indexUrl: null as string | null,
+    looksLikeIndexIssue: false,
+  };
+
+  if (!(error instanceof Error)) {
+    return fallback;
+  }
+
+  const maybeCode =
+    typeof (error as { code?: unknown }).code === "string"
+      ? (error as { code: string }).code
+      : "unknown";
+
+  const maybeMessage = error.message ?? "Unknown error";
+  const indexUrlMatch = maybeMessage.match(/https:\/\/console\.firebase\.google\.com\/\S+/);
+  const looksLikeIndexIssue =
+    maybeCode === "failed-precondition" ||
+    maybeMessage.toLowerCase().includes("requires an index") ||
+    maybeMessage.toLowerCase().includes("create index");
+
+  return {
+    code: maybeCode,
+    message: maybeMessage,
+    indexUrl: indexUrlMatch?.[0] ?? null,
+    looksLikeIndexIssue,
+  };
+}
+
+function logFavoritesError(
+  scope: string,
+  error: unknown,
+  context: Record<string, unknown>,
+) {
+  if (!__DEV__) return;
+
+  const parsed = parseFirestoreError(error);
+  console.error(`[useFavorites] ${scope} failed`, {
+    ...context,
+    code: parsed.code,
+    message: parsed.message,
+    indexUrl: parsed.indexUrl,
+    looksLikeIndexIssue: parsed.looksLikeIndexIssue,
+    rawError: error,
+  });
+
+  if (parsed.looksLikeIndexIssue) {
+    console.error("[useFavorites] Firestore index probablement manquant", {
+      scope,
+      indexUrl: parsed.indexUrl,
+    });
+  }
+}
+
 export function useFavorites(uid: string | undefined, publicationIds: string[]) {
   const queryClient = useQueryClient();
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
@@ -15,11 +72,19 @@ export function useFavorites(uid: string | undefined, publicationIds: string[]) 
     queryKey: ["favorites", uid, publicationIds],
     queryFn: async () => {
       if (!uid || publicationIds.length === 0) return { ids: [] };
-      const ids = await FavoriteService.getFavoritesByPublicationIds(
-        uid,
-        publicationIds,
-      );
-      return { ids };
+      try {
+        const ids = await FavoriteService.getFavoritesByPublicationIds(
+          uid,
+          publicationIds,
+        );
+        return { ids };
+      } catch (error) {
+        logFavoritesError("queryFn:getFavoritesByPublicationIds", error, {
+          uid,
+          publicationCount: publicationIds.length,
+        });
+        throw error;
+      }
     },
     enabled: !!uid && publicationIds.length > 0,
   });
@@ -27,16 +92,25 @@ export function useFavorites(uid: string | undefined, publicationIds: string[]) 
   const toggleMutation = useMutation({
     mutationFn: async (input: { publicationId: string; isFavorited: boolean }) => {
       if (!uid) return;
-      if (input.isFavorited) {
-        await Promise.all([
-          FavoriteService.removeFavorite(uid, input.publicationId),
-          PublicationService.adjustLikeCount(input.publicationId, -1),
-        ]);
-      } else {
-        await Promise.all([
-          FavoriteService.addFavorite(uid, input.publicationId),
-          PublicationService.adjustLikeCount(input.publicationId, 1),
-        ]);
+      try {
+        if (input.isFavorited) {
+          const removed = await FavoriteService.removeFavorite(uid, input.publicationId);
+          if (removed) {
+            await PublicationService.adjustLikeCount(input.publicationId, -1);
+          }
+        } else {
+          const added = await FavoriteService.addFavorite(uid, input.publicationId);
+          if (added) {
+            await PublicationService.adjustLikeCount(input.publicationId, 1);
+          }
+        }
+      } catch (error) {
+        logFavoritesError("mutationFn:toggleFavorite", error, {
+          uid,
+          publicationId: input.publicationId,
+          targetState: input.isFavorited ? "unfavorite" : "favorite",
+        });
+        throw error;
       }
     },
     onMutate: async (input) => {
@@ -54,7 +128,7 @@ export function useFavorites(uid: string | undefined, publicationIds: string[]) 
       if (!prev) return { prev };
       const nextIds = input.isFavorited
         ? prev.ids.filter((id) => id !== input.publicationId)
-        : [...prev.ids, input.publicationId];
+        : Array.from(new Set([...prev.ids, input.publicationId]));
       queryClient.setQueryData<FavoriteQueryResult>(
         ["favorites", uid, publicationIds],
         { ids: nextIds },
@@ -76,7 +150,13 @@ export function useFavorites(uid: string | undefined, publicationIds: string[]) 
       }
       return { prev, prevFeed };
     },
-    onError: (_err, _input, context) => {
+    onError: (err, input, context) => {
+      logFavoritesError("onError:toggleFavorite", err, {
+        uid,
+        publicationId: input.publicationId,
+        targetState: input.isFavorited ? "unfavorite" : "favorite",
+      });
+
       if (context?.prev) {
         queryClient.setQueryData(
           ["favorites", uid, publicationIds],
@@ -102,7 +182,7 @@ export function useFavorites(uid: string | undefined, publicationIds: string[]) 
     },
   });
 
-  const favoriteIds = query.data?.ids ?? [];
+  const favoriteIds = useMemo(() => query.data?.ids ?? [], [query.data?.ids]);
   const favoriteSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
 
   return {

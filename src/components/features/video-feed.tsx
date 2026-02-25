@@ -181,6 +181,9 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
     [
       ITEM_HEIGHT,
       activeId,
+      favoriteSet,
+      isPending,
+      toggleFavorite,
       publications.length,
       hasNextPage,
       isFetchingNextPage,
@@ -192,6 +195,27 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
       addToCart,
       isProductCardCollapsed,
       toggleProductCardCollapsed,
+    ],
+  );
+
+  const feedExtraData = useMemo(
+    () => ({
+      activeId,
+      favoriteSet,
+      isPending,
+      inCartSet,
+      isCartMutating,
+      cartCount,
+      isProductCardCollapsed,
+    }),
+    [
+      activeId,
+      favoriteSet,
+      isPending,
+      inCartSet,
+      isCartMutating,
+      cartCount,
+      isProductCardCollapsed,
     ],
   );
 
@@ -297,6 +321,7 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
         <FlashList
           ref={listRef}
           data={publications}
+          extraData={feedExtraData}
           renderItem={renderItem}
           keyExtractor={(item) => item.id!}
           onContentSizeChange={() => {

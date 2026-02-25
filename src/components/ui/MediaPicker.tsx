@@ -5,6 +5,7 @@ import {
   Modal,
   Pressable,
   Text,
+  TextInput,
   View,
   Dimensions,
   ActivityIndicator,
@@ -54,10 +55,10 @@ function dedupeAssets(items: MediaLibrary.Asset[]): MediaLibrary.Asset[] {
   return Array.from(uniqueMap.values());
 }
 
-function buildAssetListKey(asset: MediaLibrary.Asset, index: number): string {
+function buildAssetListKey(asset: MediaLibrary.Asset): string {
   const idPart = String(asset.id || "unknown-id");
   const uriPart = String(asset.uri || "unknown-uri");
-  return `asset-${idPart}-${uriPart}-${index}`;
+  return `asset-${idPart}-${uriPart}`;
 }
 
 function dedupeAlbums(items: MediaLibrary.Album[]): MediaLibrary.Album[] {
@@ -71,11 +72,21 @@ function dedupeAlbums(items: MediaLibrary.Album[]): MediaLibrary.Album[] {
   return Array.from(uniqueMap.values());
 }
 
-function buildAlbumListKey(item: AlbumListItem, index: number): string {
+function buildAlbumListKey(item: AlbumListItem): string {
   if (item.kind === "all") {
     return "album-all";
   }
-  return `album-${item.id}-${index}`;
+  return `album-${item.id}`;
+}
+
+function getAssetSearchName(asset: MediaLibrary.Asset): string {
+  const fileName = String((asset as { filename?: string }).filename || "");
+  if (fileName) {
+    return fileName.toLowerCase();
+  }
+  const uri = String(asset.uri || "");
+  const fromUri = uri.split("/").pop()?.split("?")[0] || "";
+  return fromUri.toLowerCase();
 }
 
 export function MediaPicker({
@@ -97,12 +108,14 @@ export function MediaPicker({
   const [selectedAsset, setSelectedAsset] = useState<MediaLibrary.Asset | null>(
     null,
   );
+  const [searchQuery, setSearchQuery] = useState("");
 
   // --- PAGINATION & LOCK ---
   const [isLoading, setIsLoading] = useState(false);
   const loadingRef = useRef(false);
   const [hasNextPage, setHasNextPage] = useState(true);
-  const [endCursor, setEndCursor] = useState<string | undefined>(undefined);
+  const hasNextPageRef = useRef(true);
+  const endCursorRef = useRef<string | undefined>(undefined);
   const albumItems = useMemo<AlbumListItem[]>(
     () => [
       { kind: "all", id: "all", title: t("mediaPicker.recents") },
@@ -115,6 +128,19 @@ export function MediaPicker({
     ],
     [albums, t],
   );
+  const normalizedSearchQuery = useMemo(
+    () => searchQuery.trim().toLowerCase(),
+    [searchQuery],
+  );
+  const isSearchActive = normalizedSearchQuery.length > 0;
+  const visibleAssets = useMemo(() => {
+    if (!normalizedSearchQuery) {
+      return assets;
+    }
+    return assets.filter((asset) =>
+      getAssetSearchName(asset).includes(normalizedSearchQuery),
+    );
+  }, [assets, normalizedSearchQuery]);
 
   // 1. Initialiser le player
   const player = useVideoPlayer(null, (p) => {
@@ -162,19 +188,24 @@ export function MediaPicker({
 
   const loadAssets = useCallback(
     async (refresh = false) => {
-      if (loadingRef.current || (!hasNextPage && !refresh)) return;
+      if (loadingRef.current || (!hasNextPageRef.current && !refresh)) return;
 
       loadingRef.current = true;
       setIsLoading(true);
 
       try {
+        if (refresh) {
+          hasNextPageRef.current = true;
+          endCursorRef.current = undefined;
+        }
+
         const options: MediaLibrary.AssetsOptions = {
           first: 30,
           mediaType: mediaTypes,
           sortBy: [[MediaLibrary.SortBy.creationTime, false]],
         };
 
-        if (!refresh && endCursor) options.after = endCursor;
+        if (!refresh && endCursorRef.current) options.after = endCursorRef.current;
         if (selectedAlbum) options.album = selectedAlbum;
 
         const page = await MediaLibrary.getAssetsAsync(options);
@@ -183,7 +214,8 @@ export function MediaPicker({
           const mergedAssets = refresh ? page.assets : [...prev, ...page.assets];
           return dedupeAssets(mergedAssets);
         });
-        setEndCursor(page.endCursor);
+        endCursorRef.current = page.endCursor;
+        hasNextPageRef.current = page.hasNextPage;
         setHasNextPage(page.hasNextPage);
       } catch (err) {
         console.error("Flikk Error [loadAssets]:", err);
@@ -192,7 +224,7 @@ export function MediaPicker({
         setIsLoading(false);
       }
     },
-    [endCursor, hasNextPage, selectedAlbum, mediaTypes],
+    [selectedAlbum, mediaTypes],
   );
 
   // Cycle de vie de la modale
@@ -207,7 +239,9 @@ export function MediaPicker({
     } else {
       // Nettoyage strict à la fermeture
       setAssets([]);
-      setEndCursor(undefined);
+      setSearchQuery("");
+      endCursorRef.current = undefined;
+      hasNextPageRef.current = true;
       setSelectedAlbum(null);
       setSelectedAsset(null);
       setHasNextPage(true);
@@ -226,6 +260,11 @@ export function MediaPicker({
       loadAssets(true);
     }
   }, [selectedAlbum, isVisible, permissionResponse?.granted, loadAssets]);
+
+  const handleEndReached = useCallback(() => {
+    if (isSearchActive) return;
+    void loadAssets();
+  }, [isSearchActive, loadAssets]);
 
   const renderItem = ({ item }: { item: MediaLibrary.Asset }) => (
     <Pressable
@@ -274,7 +313,7 @@ export function MediaPicker({
           <FlatList
             horizontal
             data={albumItems}
-            keyExtractor={(item, index) => buildAlbumListKey(item, index)}
+            keyExtractor={(item) => buildAlbumListKey(item)}
             showsHorizontalScrollIndicator={false}
             renderItem={({ item }) => (
               <Pressable
@@ -301,19 +340,52 @@ export function MediaPicker({
               </Pressable>
             )}
           />
+
+          <View className="px-4 pt-3">
+            <View className="h-11 flex-row items-center rounded-2xl border border-white/10 bg-[#121212] px-3">
+              <Ionicons name="search" size={16} color="#B3B3B3" />
+              <TextInput
+                className="ml-2 flex-1 text-sm text-white"
+                placeholder={t("mediaPicker.searchPlaceholder")}
+                placeholderTextColor="#666666"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="search"
+              />
+              {searchQuery.length > 0 && (
+                <Pressable
+                  onPress={() => setSearchQuery("")}
+                  className="h-6 w-6 items-center justify-center rounded-full bg-white/10"
+                >
+                  <Ionicons name="close" size={14} color="#FFFFFF" />
+                </Pressable>
+              )}
+            </View>
+          </View>
         </View>
 
         {/* --- GRILLE --- */}
         <FlatList
-          data={assets}
+          data={visibleAssets}
           renderItem={renderItem}
-          keyExtractor={(item, index) => buildAssetListKey(item, index)}
+          keyExtractor={(item) => buildAssetListKey(item)}
           numColumns={COLUMN_COUNT}
-          onEndReached={() => loadAssets()}
+          onEndReached={handleEndReached}
           onEndReachedThreshold={0.5}
           ListFooterComponent={() =>
-            isLoading && hasNextPage ? (
+            !isSearchActive && isLoading && hasNextPage ? (
               <ActivityIndicator color="#CCFF00" className="my-6" />
+            ) : null
+          }
+          ListEmptyComponent={() =>
+            !isLoading ? (
+              <View className="items-center justify-center px-6 py-12">
+                <Text className="text-center text-sm text-flikk-text-muted">
+                  {t("mediaPicker.noResults")}
+                </Text>
+              </View>
             ) : null
           }
         />

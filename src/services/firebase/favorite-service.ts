@@ -4,8 +4,7 @@ import {
   doc,
   getDocs,
   query,
-  setDoc,
-  deleteDoc,
+  runTransaction,
   serverTimestamp,
   where,
   documentId,
@@ -47,25 +46,39 @@ export class FavoriteService {
     return results.flat();
   }
 
-  static async addFavorite(uid: string, publicationId: string): Promise<void> {
+  static async addFavorite(uid: string, publicationId: string): Promise<boolean> {
     const ref = doc(
       FirebaseService.db,
       `users/${uid}/favorites/${publicationId}`,
     );
-    await setDoc(ref, {
-      publicationId,
-      createdAt: serverTimestamp(),
+    return runTransaction(FirebaseService.db, async (tx) => {
+      const snapshot = await tx.get(ref);
+      if (snapshot.exists()) {
+        return false;
+      }
+      tx.set(ref, {
+        publicationId,
+        createdAt: serverTimestamp(),
+      });
+      return true;
     });
   }
 
   static async removeFavorite(
     uid: string,
     publicationId: string,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const ref = doc(
       FirebaseService.db,
       `users/${uid}/favorites/${publicationId}`,
     );
-    await deleteDoc(ref);
+    return runTransaction(FirebaseService.db, async (tx) => {
+      const snapshot = await tx.get(ref);
+      if (!snapshot.exists()) {
+        return false;
+      }
+      tx.delete(ref);
+      return true;
+    });
   }
 }

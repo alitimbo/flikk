@@ -72,8 +72,8 @@
       "phoneLabel": "Phone Number",
       "button": "Get my code",
       "buttonWait": "Wait {{seconds}}s",
-      "emailTitle": "Email sign in",
-      "emailSubtitle": "Sign in with password or request an OTP code by email.",
+      "emailTitle": "OTP Sign in / Sign up",
+      "emailSubtitle": "Enter your email to receive an OTP code and access your account.",
       "emailModeLogin": "Sign in",
       "emailModeSignup": "Sign up",
       "emailModeOtp": "Email OTP",
@@ -121,6 +121,9 @@
       "firstName": "First Name",
       "lastName": "Last Name",
       "email": "Email",
+      "phoneRequiredLabel": "Phone number",
+      "phoneRequiredHint": "Required to complete your account (Niger, Mali, Burkina Faso).",
+      "phoneRequiredError": "Add a valid number (at least 8 digits).",
       "isMerchant": "I am a merchant",
       "merchantInfo": "Business Information",
       "businessName": "Business Name",
@@ -141,6 +144,8 @@
       "airtel": "Airtel Money",
       "zamani": "Zamani Cash",
       "moov": "Moov Flooz",
+      "orangeMali": "Orange Money Mali",
+      "orangeBurkina": "Orange Money Burkina Faso",
       "save": "Save Profile"
     }
   },
@@ -176,6 +181,8 @@
     "validate": "Validate",
     "gallery": "Gallery",
     "recents": "Recents",
+    "searchPlaceholder": "Search by file name",
+    "noResults": "No media matches this search.",
     "errorInvalidFormat": "Invalid format. Only photos are allowed."
   },
   "action": {

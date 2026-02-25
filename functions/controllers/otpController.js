@@ -305,6 +305,27 @@ exports.verifyOtpCode = onCall({ invoker: "public" }, async (request) => {
     const challenge = snap.data() || {};
     const status = challenge.status || "pending";
     if (status !== "pending") {
+      if (status === "verified") {
+        const validVerifiedRetry = verifyOtpCode(
+          challengeId,
+          otpCode,
+          challenge.salt,
+          challenge.codeHash,
+        );
+        if (!validVerifiedRetry) {
+          return { ok: false, code: "NOT_PENDING" };
+        }
+
+        const channel = challenge.channel === "email" ? "email" : "sms";
+        return {
+          ok: true,
+          channel,
+          phoneE164: challenge.phoneE164 || null,
+          emailNormalized: challenge.emailNormalized || null,
+          retried: true,
+        };
+      }
+
       return { ok: false, code: "NOT_PENDING" };
     }
 
@@ -400,30 +421,75 @@ exports.verifyOtpCode = onCall({ invoker: "public" }, async (request) => {
   let profileIdentity;
   let authMethod;
 
-  if (check.channel === "email") {
-    if (!check.emailNormalized) {
-      throw new HttpsError("failed-precondition", "Missing email challenge.");
+  try {
+    if (check.channel === "email") {
+      if (!check.emailNormalized) {
+        throw new HttpsError("failed-precondition", "Missing email challenge.");
+      }
+      authResult = await getOrCreateAuthUserByEmail(check.emailNormalized);
+      profileIdentity = { email: check.emailNormalized };
+      authMethod = "otp_email";
+    } else {
+      if (!check.phoneE164) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Missing phone challenge.",
+        );
+      }
+      authResult = await getOrCreateAuthUserByPhone(check.phoneE164);
+      profileIdentity = { phoneNumber: check.phoneE164 };
+      authMethod = "otp_sms";
     }
-    authResult = await getOrCreateAuthUserByEmail(check.emailNormalized);
-    profileIdentity = { email: check.emailNormalized };
-    authMethod = "otp_email";
-  } else {
-    if (!check.phoneE164) {
-      throw new HttpsError(
-        "failed-precondition",
-        "Missing phone challenge.",
-      );
-    }
-    authResult = await getOrCreateAuthUserByPhone(check.phoneE164);
-    profileIdentity = { phoneNumber: check.phoneE164 };
-    authMethod = "otp_sms";
+
+    await ensureUserProfile(authResult.uid, profileIdentity);
+  } catch (error) {
+    logger.error("verifyOtpCode identity provisioning error", {
+      challengeId,
+      channel: check.channel,
+      code: error?.code || null,
+      message: error?.message || String(error),
+    });
+    throw error;
   }
 
-  await ensureUserProfile(authResult.uid, profileIdentity);
+  let customToken;
+  try {
+    customToken = await admin.auth().createCustomToken(authResult.uid, {
+      authMethod,
+    });
+  } catch (error) {
+    const rawCode = String(error?.code || "");
+    const rawMessage = String(error?.message || error || "");
+    const errorFingerprint = `${rawCode} ${rawMessage}`.toLowerCase();
+    const looksLikeSigningMisconfig =
+      errorFingerprint.includes("iam.serviceaccounts.signblob") ||
+      errorFingerprint.includes("signblob") ||
+      errorFingerprint.includes("service account") ||
+      errorFingerprint.includes("iamcredentials") ||
+      errorFingerprint.includes("permission");
 
-  const customToken = await admin.auth().createCustomToken(authResult.uid, {
-    authMethod,
-  });
+    logger.error("verifyOtpCode custom token error", {
+      challengeId,
+      channel: check.channel,
+      uid: authResult?.uid || null,
+      code: rawCode || null,
+      message: rawMessage,
+      name: error?.name || null,
+      stack: error?.stack || null,
+      hint: looksLikeSigningMisconfig
+        ? "runtime service account cannot sign custom auth tokens"
+        : null,
+    });
+
+    if (looksLikeSigningMisconfig) {
+      throw new HttpsError(
+        "failed-precondition",
+        "AUTH_TOKEN_SIGNING_MISCONFIGURED",
+      );
+    }
+
+    throw new HttpsError("internal", "Unable to issue auth token.");
+  }
 
   return {
     customToken,

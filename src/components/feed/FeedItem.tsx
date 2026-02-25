@@ -60,8 +60,15 @@ interface FeedItemProps {
 }
 
 const { height } = Dimensions.get("window");
-const VIDEO_ASPECT_RATIO = 9 / 16;
-const VERTICAL_RATIO_TOLERANCE = 0.04;
+const FEED_COVER_MAX_RATIO = 0.95;
+
+function shouldUseCoverByRatio(width?: number, height?: number): boolean {
+  if (!width || !height || width <= 0 || height <= 0) {
+    return true;
+  }
+  const ratio = width / height;
+  return ratio <= FEED_COVER_MAX_RATIO;
+}
 
 export function FeedItem({
   publication,
@@ -169,6 +176,11 @@ export function FeedItem({
   });
 
   useEffect(() => {
+    // FlashList can recycle item components. Reset fit mode when source changes.
+    setIsVerticalVideo(true);
+  }, [videoUri]);
+
+  useEffect(() => {
     const timeSub = player.addListener("timeUpdate", (payload) => {
       if (!isScrubbing) {
         setCurrentTime(payload.currentTime);
@@ -185,10 +197,13 @@ export function FeedItem({
             b.size.width * b.size.height - a.size.width * a.size.height,
         )[0];
       if (selectedTrack?.size?.width && selectedTrack?.size?.height) {
-        const ratio = selectedTrack.size.width / selectedTrack.size.height;
-        const isVertical =
-          Math.abs(ratio - VIDEO_ASPECT_RATIO) <= VERTICAL_RATIO_TOLERANCE;
-        setIsVerticalVideo(isVertical);
+        const shouldUseCover = shouldUseCoverByRatio(
+          selectedTrack.size.width,
+          selectedTrack.size.height,
+        );
+        setIsVerticalVideo((prev) =>
+          prev === shouldUseCover ? prev : shouldUseCover,
+        );
       } else {
         // If metadata is not available, keep default vertical behavior.
         setIsVerticalVideo(true);
@@ -197,10 +212,13 @@ export function FeedItem({
     const trackSub = player.addListener("videoTrackChange", (payload) => {
       const track = payload.videoTrack;
       if (!track?.size?.width || !track?.size?.height) return;
-      const ratio = track.size.width / track.size.height;
-      const isVertical =
-        Math.abs(ratio - VIDEO_ASPECT_RATIO) <= VERTICAL_RATIO_TOLERANCE;
-      setIsVerticalVideo(isVertical);
+      const shouldUseCover = shouldUseCoverByRatio(
+        track.size.width,
+        track.size.height,
+      );
+      setIsVerticalVideo((prev) =>
+        prev === shouldUseCover ? prev : shouldUseCover,
+      );
     });
     const endSub = player.addListener("playToEnd", () => {
       if (isActive) {
