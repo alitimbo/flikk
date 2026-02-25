@@ -53,8 +53,8 @@ exports.onRawVideoUpload = onObjectFinalized({
         await bucket.file(filePath).download({ destination: tempFilePath });
         logger.info("Flikk CF: Downloaded to", tempFilePath);
 
-        // 4. Transcodage HLS (via ton utilitaire ffmpeg)
-        await transcodeVideo(tempFilePath, tempOutputDir);
+        // 4. HLS transcode with orientation-aware ladder (portrait or landscape)
+        const transcodeResult = await transcodeVideo(tempFilePath, tempOutputDir);
 
         // 5. Upload des fichiers HLS vers processed/hls/{fileName}/
         const targetDir = `processed/hls/${outputDirName}`;
@@ -105,10 +105,21 @@ exports.onRawVideoUpload = onObjectFinalized({
             await admin.firestore().collection("publications").doc(pubId).update({
                 hlsUrl: hlsUrl,
                 videoUrl: hlsUrl, // On remplace par l'URL rapide pour le feed
+                videoAspectProfile: transcodeResult.aspectProfile,
+                videoSourceWidth: transcodeResult.sourceWidth,
+                videoSourceHeight: transcodeResult.sourceHeight,
+                videoSourceRatio: transcodeResult.sourceRatio,
+                videoVariants: transcodeResult.ladder,
                 status: "ready",
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
-            logger.info("Flikk CF: Firestore updated successfully", { pubId, hlsUrl });
+            logger.info("Flikk CF: Firestore updated successfully", {
+                pubId,
+                hlsUrl,
+                aspectProfile: transcodeResult.aspectProfile,
+                sourceWidth: transcodeResult.sourceWidth,
+                sourceHeight: transcodeResult.sourceHeight,
+            });
         } else {
             logger.warn("Flikk CF: No Firestore document found to update.");
         }

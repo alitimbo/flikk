@@ -83,6 +83,16 @@ export interface Publication {
   imageUrl: string;
   videoUrl: string; // Original video URL
   hlsUrl?: string; // Transcoded master.m3u8 URL
+  videoAspectProfile?: "portrait" | "landscape";
+  videoSourceWidth?: number;
+  videoSourceHeight?: number;
+  videoSourceRatio?: number;
+  videoVariants?: {
+    name: string;
+    width: number;
+    height: number;
+    bitrate: string;
+  }[];
   searchTokens?: string[];
   merchantName?: string;
   merchantLogoUrl?: string;

@@ -70,6 +70,22 @@ function shouldUseCoverByRatio(width?: number, height?: number): boolean {
   return ratio <= FEED_COVER_MAX_RATIO;
 }
 
+function shouldUseCoverByPublication(publication: Publication): boolean {
+  if (publication.videoSourceWidth && publication.videoSourceHeight) {
+    return shouldUseCoverByRatio(
+      publication.videoSourceWidth,
+      publication.videoSourceHeight,
+    );
+  }
+  if (publication.videoAspectProfile === "landscape") {
+    return false;
+  }
+  if (publication.videoAspectProfile === "portrait") {
+    return true;
+  }
+  return true;
+}
+
 export function FeedItem({
   publication,
   isActive,
@@ -126,7 +142,9 @@ export function FeedItem({
   const [sheetTranslateY, setSheetTranslateY] = useState(0);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [phoneError, setPhoneError] = useState<string | null>(null);
-  const [isVerticalVideo, setIsVerticalVideo] = useState(true);
+  const [isVerticalVideo, setIsVerticalVideo] = useState(() =>
+    shouldUseCoverByPublication(publication),
+  );
   const deviceId = useMemo(() => DeviceService.getDeviceId(), []);
   const wasActiveRef = useRef(false);
   const productCardAnim = useRef(
@@ -137,6 +155,7 @@ export function FeedItem({
     () => publication.hlsUrl || publication.videoUrl,
     [publication.hlsUrl, publication.videoUrl],
   );
+  const initialCoverMode = shouldUseCoverByPublication(publication);
   const videoContentFit: "cover" | "contain" = isVerticalVideo
     ? "cover"
     : "contain";
@@ -177,8 +196,8 @@ export function FeedItem({
 
   useEffect(() => {
     // FlashList can recycle item components. Reset fit mode when source changes.
-    setIsVerticalVideo(true);
-  }, [videoUri]);
+    setIsVerticalVideo(initialCoverMode);
+  }, [videoUri, initialCoverMode]);
 
   useEffect(() => {
     const timeSub = player.addListener("timeUpdate", (payload) => {
@@ -205,8 +224,8 @@ export function FeedItem({
           prev === shouldUseCover ? prev : shouldUseCover,
         );
       } else {
-        // If metadata is not available, keep default vertical behavior.
-        setIsVerticalVideo(true);
+        // If track metadata is not available, fallback to publication metadata/default.
+        setIsVerticalVideo(initialCoverMode);
       }
     });
     const trackSub = player.addListener("videoTrackChange", (payload) => {
@@ -236,7 +255,7 @@ export function FeedItem({
       endSub.remove();
       playingSub.remove();
     };
-  }, [player, isScrubbing, isActive, index, onRequestNext]);
+  }, [player, isScrubbing, isActive, index, onRequestNext, initialCoverMode]);
 
   useEffect(() => {
     const showSub = Keyboard.addListener("keyboardDidShow", (event) => {
