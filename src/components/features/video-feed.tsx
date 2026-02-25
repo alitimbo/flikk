@@ -38,6 +38,7 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
     refetch,
   } = useFeed();
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [isFeedFocused, setIsFeedFocused] = useState(true);
   const [isScrollLocked, setIsScrollLocked] = useState(false);
   const [isProductCardCollapsed, setIsProductCardCollapsed] = useState(
     MMKVStorage.getItem(FEED_PRODUCT_CARD_COLLAPSED_KEY) === "1",
@@ -141,6 +142,7 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
         <FeedItem
           publication={item}
           isActive={item.id === activeId}
+          isFeedFocused={isFeedFocused}
           index={index}
           isFavorited={favoriteSet.has(item.id ?? "")}
           isLikePending={isPending(item.id ?? "")}
@@ -193,6 +195,7 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
       inCartSet,
       isCartMutating,
       addToCart,
+      isFeedFocused,
       isProductCardCollapsed,
       toggleProductCardCollapsed,
     ],
@@ -206,6 +209,7 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
       inCartSet,
       isCartMutating,
       cartCount,
+      isFeedFocused,
       isProductCardCollapsed,
     }),
     [
@@ -215,6 +219,7 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
       inCartSet,
       isCartMutating,
       cartCount,
+      isFeedFocused,
       isProductCardCollapsed,
     ],
   );
@@ -295,11 +300,11 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
 
   useFocusEffect(
     useCallback(() => {
+      setIsFeedFocused(true);
       void activateKeepAwakeAsync(FEED_KEEP_AWAKE_TAG);
       return () => {
+        setIsFeedFocused(false);
         void deactivateKeepAwake(FEED_KEEP_AWAKE_TAG);
-        activeIdRef.current = null;
-        setActiveId(null);
       };
     }, []),
   );

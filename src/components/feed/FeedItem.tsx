@@ -43,6 +43,7 @@ import Toast from "react-native-toast-message";
 interface FeedItemProps {
   publication: Publication;
   isActive: boolean;
+  isFeedFocused: boolean;
   index: number;
   isFavorited?: boolean;
   isLikePending?: boolean;
@@ -89,6 +90,7 @@ function shouldUseCoverByPublication(publication: Publication): boolean {
 export function FeedItem({
   publication,
   isActive,
+  isFeedFocused,
   index,
   isFavorited,
   isLikePending,
@@ -316,7 +318,7 @@ export function FeedItem({
 
   // Handle Play/Pause and View Tracking
   useEffect(() => {
-    if (isActive) {
+    if (isActive && isFeedFocused) {
       // Start 3s timer for view increment
       if (!viewTracked) {
         timerRef.current = setTimeout(() => {
@@ -337,7 +339,7 @@ export function FeedItem({
         clearTimeout(timerRef.current);
       }
     };
-  }, [isActive, publication.id, viewTracked]);
+  }, [isActive, isFeedFocused, publication.id, viewTracked, deviceId]);
 
   useEffect(() => {
     if (!videoUri) return;
@@ -365,8 +367,13 @@ export function FeedItem({
   useEffect(() => {
     const isInfoOpen = isGuaranteeOpen || isDeliveryOpen;
 
-    // Reset playback when the card leaves viewport so coming back restarts from 0.
-    if (wasActiveRef.current && !isActive) {
+    if (!isFeedFocused && isActive) {
+      player.pause();
+      setIsUserPaused(true);
+    }
+
+    // Reset playback when the card leaves viewport while feed remains focused.
+    if (isFeedFocused && wasActiveRef.current && !isActive) {
       player.pause();
       player.currentTime = 0;
       setCurrentTime(0);
@@ -375,7 +382,9 @@ export function FeedItem({
     wasActiveRef.current = isActive;
 
     if (
+      isFeedFocused &&
       isActive &&
+      !isUserPaused &&
       !isCommentsOpen &&
       !isPaymentOpen &&
       !isInfoOpen &&
@@ -388,6 +397,8 @@ export function FeedItem({
     }
   }, [
     isActive,
+    isFeedFocused,
+    isUserPaused,
     isCommentsOpen,
     isPaymentOpen,
     isGuaranteeOpen,
@@ -467,20 +478,33 @@ export function FeedItem({
     setIsAuthRequiredOpen(true);
   }, []);
 
+  const sanitizePhoneInput = useCallback(
+    (value?: string | null) => (value ?? "").replace(/\D/g, ""),
+    [],
+  );
+
   const openPaymentSheet = useCallback(() => {
     const user = getAuth().currentUser;
     if (!user) {
       openAuthRequired();
       return;
     }
-    setPhoneNumber((user.phoneNumber ?? "").replace(/\D/g, ""));
+    const prefetchedPhone = sanitizePhoneInput(
+      userProfile?.phoneNumber || user.phoneNumber,
+    );
+    setPhoneNumber(prefetchedPhone);
     setPhoneError(null);
     setPaymentReference(null);
     setPaymentStatus(null);
     setOrderNumber(null);
     setIsPaymentOpen(true);
     onPaymentOpenChange?.(true);
-  }, [openAuthRequired]);
+  }, [
+    openAuthRequired,
+    onPaymentOpenChange,
+    sanitizePhoneInput,
+    userProfile?.phoneNumber,
+  ]);
 
   const handleLikePress = useCallback(() => {
     const user = getAuth().currentUser;
@@ -560,7 +584,7 @@ export function FeedItem({
     setPhoneError(null);
     setIsPaymentSubmitting(false);
     onPaymentOpenChange?.(false);
-  }, []);
+  }, [onPaymentOpenChange]);
 
   const authUser = getAuth().currentUser;
   const { data: userProfile } = useUserProfile(authUser?.uid);
@@ -581,9 +605,7 @@ export function FeedItem({
       openAuthRequired();
       return;
     }
-    const sanitizeMsisdn = (value: string) =>
-      value.replace(/\D/g, "");
-    const normalizedMsisdn = sanitizeMsisdn(phoneNumber);
+    const normalizedMsisdn = sanitizePhoneInput(phoneNumber);
     if (normalizedMsisdn.length < 8) {
       setPhoneError(t("payment.phoneInvalid"));
       return;
@@ -621,7 +643,15 @@ export function FeedItem({
     } finally {
       setIsPaymentSubmitting(false);
     }
-  }, [phoneNumber, t, userProfile, publication.id, openAuthRequired, closePaymentSheet]);
+  }, [
+    phoneNumber,
+    t,
+    userProfile,
+    publication.id,
+    openAuthRequired,
+    closePaymentSheet,
+    sanitizePhoneInput,
+  ]);
 
   const sheetPanResponder = useMemo(
     () =>
