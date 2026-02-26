@@ -173,16 +173,11 @@ export class PublicationService {
 
   static async adjustLikeCount(id: string, delta: number): Promise<void> {
     const ref = doc(this.collection, id);
-    await runTransaction(FirebaseService.db, async (tx) => {
-      const snap = await tx.get(ref);
-      if (!snap.exists) return;
-      const data = snap.data() as Publication;
-      const current = Number(data.likeCount ?? 0);
-      const next = Math.max(0, current + delta);
-      tx.update(ref, {
-        likeCount: next,
-        updatedAt: serverTimestamp(),
-      });
+    // ✅ On utilise updateDoc + increment() directement (sans transaction)
+    // pour que Firestore n'évalue que la règle onlyUpdatesCounters,
+    // ce qui permet au non-propriétaire d'incrémenter/décrémenter likeCount.
+    await updateDoc(ref, {
+      likeCount: increment(delta),
     });
   }
 

@@ -12,6 +12,8 @@ import {
   startAfter,
   where,
   increment,
+  updateDoc,
+  writeBatch,
   FirebaseFirestoreTypes,
 } from "@react-native-firebase/firestore";
 import { Comment, CommentSort } from "@/types";
@@ -107,24 +109,26 @@ export class CommentService {
       input.publicationId,
     );
 
-    await runTransaction(FirebaseService.db, async (tx) => {
-      tx.set(commentRef, {
-        publicationId: input.publicationId,
-        userId: input.userId,
-        text: input.text,
-        likeCount: 0,
-        replyCount: 0,
-        parentId: null,
-        authorName: input.authorName ?? "",
-        authorAvatarUrl: input.authorAvatarUrl ?? "",
-        authorIsMerchant: input.authorIsMerchant ?? false,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-      tx.update(publicationRef, {
-        commentCount: increment(1),
-        updatedAt: serverTimestamp(),
-      });
+    // ✅ Batch pour créer le commentaire seul
+    const batch = writeBatch(FirebaseService.db);
+    batch.set(commentRef, {
+      publicationId: input.publicationId,
+      userId: input.userId,
+      text: input.text,
+      likeCount: 0,
+      replyCount: 0,
+      parentId: null,
+      authorName: input.authorName ?? "",
+      authorAvatarUrl: input.authorAvatarUrl ?? "",
+      authorIsMerchant: input.authorIsMerchant ?? false,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    await batch.commit();
+    // ✅ updateDoc séparé : seule la règle onlyUpdatesCounters est évaluée
+    // → passe pour tout utilisateur connecté, même non-propriétaire
+    await updateDoc(publicationRef, {
+      commentCount: increment(1),
     });
 
     return commentRef.id;
@@ -142,28 +146,28 @@ export class CommentService {
       input.publicationId,
     );
 
-    await runTransaction(FirebaseService.db, async (tx) => {
-      tx.set(replyRef, {
-        publicationId: input.publicationId,
-        userId: input.userId,
-        text: input.text,
-        likeCount: 0,
-        replyCount: 0,
-        parentId: commentId,
-        authorName: input.authorName ?? "",
-        authorAvatarUrl: input.authorAvatarUrl ?? "",
-        authorIsMerchant: input.authorIsMerchant ?? false,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-      tx.update(parentRef, {
-        replyCount: increment(1),
-        updatedAt: serverTimestamp(),
-      });
-      tx.update(publicationRef, {
-        commentCount: increment(1),
-        updatedAt: serverTimestamp(),
-      });
+    // ✅ Batch pour la reply seule (pas de mélange avec le parent)
+    const batch = writeBatch(FirebaseService.db);
+    batch.set(replyRef, {
+      publicationId: input.publicationId,
+      userId: input.userId,
+      text: input.text,
+      likeCount: 0,
+      replyCount: 0,
+      parentId: commentId,
+      authorName: input.authorName ?? "",
+      authorAvatarUrl: input.authorAvatarUrl ?? "",
+      authorIsMerchant: input.authorIsMerchant ?? false,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    await batch.commit();
+    // ✅ updateDoc séparés : onlyUpdatesCounters autorise replyCount/commentCount
+    await updateDoc(parentRef, {
+      replyCount: increment(1),
+    });
+    await updateDoc(publicationRef, {
+      commentCount: increment(1),
     });
 
     return replyRef.id;

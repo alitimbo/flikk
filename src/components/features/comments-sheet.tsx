@@ -62,11 +62,7 @@ export function CommentsSheet({
   const authUser = getAuth().currentUser;
   const { data: userProfile } = useUserProfile(authUser?.uid);
 
-  const commentsQuery = usePublicationComments(
-    publicationId,
-    sort,
-    isVisible,
-  );
+  const commentsQuery = usePublicationComments(publicationId, sort, isVisible);
   const comments = useMemo(
     () => commentsQuery.data?.pages.flatMap((page) => page.comments) ?? [],
     [commentsQuery.data],
@@ -138,6 +134,11 @@ export function CommentsSheet({
     try {
       setIsSubmitting(true);
       const now = new Date();
+      // ✅ Vider l'input immédiatement (avant les appels Firestore)
+      const currentReplyTarget = replyTarget;
+      setMessage("");
+      setReplyTarget(null);
+
       const optimisticComment: Comment = {
         id: `temp-${now.getTime()}`,
         publicationId,
@@ -145,7 +146,7 @@ export function CommentsSheet({
         text: trimmed,
         likeCount: 0,
         replyCount: 0,
-        parentId: replyTarget ? replyTarget.commentId : null,
+        parentId: currentReplyTarget ? currentReplyTarget.commentId : null,
         authorName,
         authorAvatarUrl,
         authorIsMerchant: userProfile?.isMerchant ?? false,
@@ -153,9 +154,9 @@ export function CommentsSheet({
         updatedAt: { toDate: () => now },
       };
 
-      if (replyTarget) {
+      if (currentReplyTarget) {
         queryClient.setQueryData(
-          ["commentReplies", replyTarget.commentId],
+          ["commentReplies", currentReplyTarget.commentId],
           (oldData: any) => {
             if (!oldData?.pages?.length) {
               return {
@@ -186,7 +187,7 @@ export function CommentsSheet({
               pages: oldData.pages.map((page: any) => ({
                 ...page,
                 comments: (page.comments ?? []).map((item: Comment) =>
-                  item.id === replyTarget.commentId
+                  item.id === currentReplyTarget.commentId
                     ? {
                         ...item,
                         replyCount: Math.max(0, (item.replyCount ?? 0) + 1),
@@ -222,8 +223,8 @@ export function CommentsSheet({
         );
       }
 
-      if (replyTarget) {
-        await CommentService.createReply(replyTarget.commentId, {
+      if (currentReplyTarget) {
+        await CommentService.createReply(currentReplyTarget.commentId, {
           publicationId,
           userId: authUser.uid,
           text: trimmed,
@@ -232,7 +233,7 @@ export function CommentsSheet({
           authorIsMerchant: userProfile?.isMerchant ?? false,
         });
         await queryClient.invalidateQueries({
-          queryKey: ["commentReplies", replyTarget.commentId],
+          queryKey: ["commentReplies", currentReplyTarget.commentId],
         });
       } else {
         await CommentService.createComment({
@@ -250,8 +251,6 @@ export function CommentsSheet({
         exact: false,
       });
       onCountChange?.(1);
-      setMessage("");
-      setReplyTarget(null);
     } finally {
       setIsSubmitting(false);
     }
@@ -272,8 +271,7 @@ export function CommentsSheet({
   const sheetPanResponder = useMemo(
     () =>
       PanResponder.create({
-        onMoveShouldSetPanResponder: (_, gesture) =>
-          Math.abs(gesture.dy) > 8,
+        onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dy) > 8,
         onPanResponderMove: (_, gesture) => {
           if (gesture.dy > 0) {
             setSheetTranslateY(gesture.dy);
@@ -762,12 +760,8 @@ function ReplyCard({
             {formatRelativeTime(reply.createdAt)}
           </Text>
         </View>
-        <Text className="mt-1 text-xs text-flikk-text-muted">
-          {reply.text}
-        </Text>
-        <Pressable
-          className="mt-2 flex-row items-center gap-1"
-        >
+        <Text className="mt-1 text-xs text-flikk-text-muted">{reply.text}</Text>
+        <Pressable className="mt-2 flex-row items-center gap-1">
           {/*
           <Pressable
             className="flex-row items-center gap-1"
@@ -806,7 +800,7 @@ function AvatarBubble({
     if (!name) return "";
     const parts = name.trim().split(/\s+/);
     const first = parts[0]?.[0] ?? "";
-    const second = parts.length > 1 ? parts[parts.length - 1]?.[0] ?? "" : "";
+    const second = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "";
     return (first + second).toUpperCase();
   }, [name]);
   return (
@@ -822,11 +816,13 @@ function AvatarBubble({
           resizeMode="cover"
         />
       ) : initials ? (
-        <Text className="font-display text-xs text-flikk-text">
-          {initials}
-        </Text>
+        <Text className="font-display text-xs text-flikk-text">{initials}</Text>
       ) : (
-        <Ionicons name="person" size={size === "sm" ? 14 : 18} color="#666666" />
+        <Ionicons
+          name="person"
+          size={size === "sm" ? 14 : 18}
+          color="#666666"
+        />
       )}
     </View>
   );

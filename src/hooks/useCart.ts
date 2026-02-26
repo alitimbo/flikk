@@ -1,7 +1,12 @@
 import { useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CartService } from "@/services/firebase/cart-service";
-import type { CartItem, CartResolvedItem, Publication, UserProfile } from "@/types";
+import type {
+  CartItem,
+  CartResolvedItem,
+  Publication,
+  UserProfile,
+} from "@/types";
 
 type ResolvedCart = {
   items: CartResolvedItem[];
@@ -20,7 +25,11 @@ export function useCart(uid?: string | null) {
   });
 
   const resolvedQuery = useQuery({
-    queryKey: ["cartResolved", uid, cartQuery.data?.map((i) => i.publicationId).join(",")],
+    queryKey: [
+      "cartResolved",
+      uid,
+      cartQuery.data?.map((i) => i.publicationId).join(","),
+    ],
     queryFn: async (): Promise<ResolvedCart> => {
       const rawItems = cartQuery.data ?? [];
       const ids = rawItems.map((i) => i.publicationId);
@@ -38,7 +47,8 @@ export function useCart(uid?: string | null) {
           liveProductName,
           liveImageUrl,
           isUnavailable,
-          isPriceChanged: !isUnavailable && livePrice !== Number(cart.priceAtAdd ?? 0),
+          isPriceChanged:
+            !isUnavailable && livePrice !== Number(cart.priceAtAdd ?? 0),
         };
       });
 
@@ -83,10 +93,46 @@ export function useCart(uid?: string | null) {
       if (!uid) throw new Error("Auth required");
       await CartService.upsertItem(uid, publication, 1);
     },
-    onSuccess: invalidate,
-    onError: (error) => {
+    // ✅ Optimistic update : le panier se met à jour instantanément
+    onMutate: async (publication: Publication) => {
+      if (!uid) return { previousCart: undefined as CartItem[] | undefined };
+      await queryClient.cancelQueries({ queryKey: ["cart", uid] });
+      const previousCart = queryClient.getQueryData<CartItem[]>(["cart", uid]);
+      queryClient.setQueryData<CartItem[]>(["cart", uid], (current) => {
+        const source = current ?? [];
+        const existing = source.find((i) => i.publicationId === publication.id);
+        if (existing) {
+          return source.map((item) =>
+            item.publicationId === publication.id
+              ? { ...item, quantity: item.quantity + 1 }
+              : item,
+          );
+        }
+        return [
+          ...source,
+          {
+            publicationId: publication.id!,
+            merchantId: publication.userId,
+            merchantName: publication.merchantName ?? null,
+            merchantLogoUrl: publication.merchantLogoUrl ?? null,
+            productName: publication.productName,
+            imageUrl: publication.imageUrl,
+            priceAtAdd: Number(publication.price ?? 0),
+            currency: "XOF",
+            quantity: 1,
+          } as CartItem,
+        ];
+      });
+      return { previousCart };
+    },
+    onError: (error, _publication, context) => {
+      // Rollback en cas d'erreur
+      if (uid && context?.previousCart) {
+        queryClient.setQueryData(["cart", uid], context.previousCart);
+      }
       console.log("[useCart] addToCart error:", error);
     },
+    onSettled: invalidate,
   });
 
   const setQtyMutation = useMutation({
