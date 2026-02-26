@@ -138,7 +138,9 @@ export function FeedItem({
   );
   const [phoneNumber, setPhoneNumber] = useState("");
   const [paymentReference, setPaymentReference] = useState<string | null>(null);
-  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(
+    null,
+  );
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
   const [isPaymentSubmitting, setIsPaymentSubmitting] = useState(false);
   const [sheetTranslateY, setSheetTranslateY] = useState(0);
@@ -177,9 +179,7 @@ export function FeedItem({
     const { width, height } = event.nativeEvent.layout;
     if (width <= 0 || height <= 0) return;
     setContainerSize((prev) =>
-      prev.width === width && prev.height === height
-        ? prev
-        : { width, height },
+      prev.width === width && prev.height === height ? prev : { width, height },
     );
   }, []);
 
@@ -214,8 +214,7 @@ export function FeedItem({
       const selectedTrack = tracks
         .filter((track) => track?.size?.width && track?.size?.height)
         .sort(
-          (a, b) =>
-            b.size.width * b.size.height - a.size.width * a.size.height,
+          (a, b) => b.size.width * b.size.height - a.size.width * a.size.height,
         )[0];
       if (selectedTrack?.size?.width && selectedTrack?.size?.height) {
         const shouldUseCover = shouldUseCoverByRatio(
@@ -613,7 +612,9 @@ export function FeedItem({
     setPhoneError(null);
 
     const customerName =
-      [userProfile?.firstName, userProfile?.lastName].filter(Boolean).join(" ") ||
+      [userProfile?.firstName, userProfile?.lastName]
+        .filter(Boolean)
+        .join(" ") ||
       user.phoneNumber ||
       "Client Flikk";
 
@@ -656,8 +657,7 @@ export function FeedItem({
   const sheetPanResponder = useMemo(
     () =>
       PanResponder.create({
-        onMoveShouldSetPanResponder: (_, gesture) =>
-          Math.abs(gesture.dy) > 8,
+        onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dy) > 8,
         onPanResponderMove: (_, gesture) => {
           if (gesture.dy > 0) {
             setSheetTranslateY(gesture.dy);
@@ -702,7 +702,11 @@ export function FeedItem({
 
       <Pressable onPress={togglePlayback} className="absolute inset-0" />
 
-      {isActive && isUserPaused && !isPlaying && !isCommentsOpen && !isPaymentOpen ? (
+      {isActive &&
+      isUserPaused &&
+      !isPlaying &&
+      !isCommentsOpen &&
+      !isPaymentOpen ? (
         <View
           pointerEvents="none"
           className="absolute inset-0 items-center justify-center"
@@ -872,7 +876,9 @@ export function FeedItem({
               </Pressable>
               <Pressable
                 className={`h-11 w-11 rounded-full border items-center justify-center ${
-                  isInCart ? "bg-flikk-lime/20 border-flikk-lime" : "bg-white/10 border-white/20"
+                  isInCart
+                    ? "bg-flikk-lime/20 border-flikk-lime"
+                    : "bg-white/10 border-white/20"
                 } ${isAddToCartPending ? "opacity-50" : ""}`}
                 onPress={handleAddToCart}
                 disabled={isAddToCartPending}
@@ -1016,9 +1022,7 @@ export function FeedItem({
             className="w-full rounded-t-3xl border border-white/10 bg-flikk-card p-6"
             style={{
               paddingBottom: insets.bottom + 16,
-              transform: [
-                { translateY: sheetTranslateY - keyboardHeight },
-              ],
+              transform: [{ translateY: sheetTranslateY - keyboardHeight }],
             }}
             {...sheetPanResponder.panHandlers}
           >
@@ -1185,7 +1189,10 @@ export function FeedItem({
               <Text className="font-display text-lg text-flikk-text">
                 {t("payment.guaranteeTitle")}
               </Text>
-              <Pressable onPress={() => setIsGuaranteeOpen(false)} className="p-1">
+              <Pressable
+                onPress={() => setIsGuaranteeOpen(false)}
+                className="p-1"
+              >
                 <Ionicons name="close" size={20} color="#FFFFFF" />
               </Pressable>
             </View>
@@ -1220,7 +1227,10 @@ export function FeedItem({
               <Text className="font-display text-lg text-flikk-text">
                 {t("payment.deliveryTitle")}
               </Text>
-              <Pressable onPress={() => setIsDeliveryOpen(false)} className="p-1">
+              <Pressable
+                onPress={() => setIsDeliveryOpen(false)}
+                className="p-1"
+              >
                 <Ionicons name="close" size={20} color="#FFFFFF" />
               </Pressable>
             </View>

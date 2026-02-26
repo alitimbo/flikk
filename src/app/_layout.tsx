@@ -15,6 +15,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Toast from "react-native-toast-message";
 import { useNotificationToast } from "@/hooks/useNotificationToast";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 
 SplashScreen.preventAutoHideAsync(); // ← Appel global, très tôt
 
@@ -102,18 +103,20 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>
       <QueryClientProvider client={queryClient}>
         <SafeAreaProvider>
-          <View className="flex-1">
-            <Stack screenOptions={{ headerShown: false }} />
+          <BottomSheetModalProvider>
+            <View className="flex-1">
+              <Stack screenOptions={{ headerShown: false }} />
 
-            <Toast />
+              <Toast />
 
-            {showCustomSplash && (
-              <CustomSplash
-                onFinish={() => setShowCustomSplash(false)}
-                // Option : passer firebaseReady si tu veux conditionner l'animation
-              />
-            )}
-          </View>
+              {showCustomSplash && (
+                <CustomSplash
+                  onFinish={() => setShowCustomSplash(false)}
+                  // Option : passer firebaseReady si tu veux conditionner l'animation
+                />
+              )}
+            </View>
+          </BottomSheetModalProvider>
         </SafeAreaProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>

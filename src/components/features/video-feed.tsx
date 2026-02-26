@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { View, ViewToken, useWindowDimensions } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -107,9 +113,7 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
 
       const mostVisible = [...viewableItems]
         .filter((item) => item.isViewable && item.item?.id)
-        .sort(
-          (a, b) => (b.percentVisible ?? 0) - (a.percentVisible ?? 0),
-        )[0];
+        .sort((a, b) => (b.percentVisible ?? 0) - (a.percentVisible ?? 0))[0];
 
       if (mostVisible?.item?.id) {
         setActiveIdSafe(mostVisible.item.id);
@@ -151,8 +155,7 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
             lastInteractionRef.current = Date.now();
           }}
           onRequestNext={(currentIndex) => {
-            const idleFor =
-              Date.now() - (lastInteractionRef.current || 0);
+            const idleFor = Date.now() - (lastInteractionRef.current || 0);
             if (idleFor < AUTO_ADVANCE_IDLE_MS) return;
 
             const nextIndex = currentIndex + 1;
@@ -355,12 +358,12 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
           onRefresh={onRefresh}
           refreshing={isRefetching && !isFetchingNextPage}
           viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs}
-        removeClippedSubviews
-        maxToRenderPerBatch={1}
-        windowSize={3}
-        initialNumToRender={1}
-        updateCellsBatchingPeriod={50}
-        estimatedItemSize={ITEM_HEIGHT}
+          removeClippedSubviews
+          maxToRenderPerBatch={1}
+          windowSize={3}
+          initialNumToRender={1}
+          updateCellsBatchingPeriod={50}
+          estimatedItemSize={ITEM_HEIGHT}
           disableRecycling={false}
           ListFooterComponent={() =>
             isFetchingNextPage ? (
