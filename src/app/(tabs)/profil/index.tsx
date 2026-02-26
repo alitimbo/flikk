@@ -124,7 +124,9 @@ export default function ProfilIndex() {
       }
 
       if (parsedRequestedAt > 0 && parsedResendAfterSec > 0) {
-        const elapsedSeconds = Math.floor((Date.now() - parsedRequestedAt) / 1000);
+        const elapsedSeconds = Math.floor(
+          (Date.now() - parsedRequestedAt) / 1000,
+        );
         setResendSeconds(Math.max(0, parsedResendAfterSec - elapsedSeconds));
       }
     } catch (error) {
@@ -155,7 +157,11 @@ export default function ProfilIndex() {
 
     if (isEditing) return;
 
-    const sourcePhone = (userProfile?.phoneNumber || authUser?.phoneNumber || "")
+    const sourcePhone = (
+      userProfile?.phoneNumber ||
+      authUser?.phoneNumber ||
+      ""
+    )
       .trim()
       .replace(/\s/g, "");
     const matchedIndex = COUNTRIES.findIndex((country) =>
@@ -176,7 +182,13 @@ export default function ProfilIndex() {
     }
 
     setShowProfilePhoneCountryList(false);
-  }, [userProfile, isEditing, authUser?.email, authUser?.phoneNumber, COUNTRIES]);
+  }, [
+    userProfile,
+    isEditing,
+    authUser?.email,
+    authUser?.phoneNumber,
+    COUNTRIES,
+  ]);
 
   useEffect(() => {
     if (resendSeconds <= 0) {
@@ -231,27 +243,16 @@ export default function ProfilIndex() {
     [accountPhoneNumber],
   );
   const canSaveProfilePhone = useMemo(
-    () =>
-      !requiresCompletionPhone || normalizedProfilePhoneLocal.length >= 8,
-    [requiresCompletionPhone, normalizedProfilePhoneLocal],
+    () => normalizedProfilePhoneLocal.length >= 8,
+    [normalizedProfilePhoneLocal],
   );
   const completionPhoneNumber = useMemo(() => {
-    if (!requiresCompletionPhone) {
-      return accountPhoneNumber;
-    }
     if (!normalizedProfilePhoneLocal) {
       return "";
     }
-    const selectedCountry =
-      COUNTRIES[profilePhoneCountryIndex] || COUNTRIES[0];
+    const selectedCountry = COUNTRIES[profilePhoneCountryIndex] || COUNTRIES[0];
     return `${selectedCountry.dial}${normalizedProfilePhoneLocal}`;
-  }, [
-    requiresCompletionPhone,
-    accountPhoneNumber,
-    normalizedProfilePhoneLocal,
-    COUNTRIES,
-    profilePhoneCountryIndex,
-  ]);
+  }, [normalizedProfilePhoneLocal, COUNTRIES, profilePhoneCountryIndex]);
 
   const resetOtpSession = useCallback(() => {
     setChallengeId(null);
@@ -311,14 +312,7 @@ export default function ProfilIndex() {
     } finally {
       setIsLoading(false);
     }
-  }, [
-    canConfirm,
-    isLoading,
-    challengeId,
-    resetOtpSession,
-    smsCode,
-    t,
-  ]);
+  }, [canConfirm, isLoading, challengeId, resetOtpSession, smsCode, t]);
 
   const handleSignOut = useCallback(async () => {
     await auth().signOut();
@@ -434,6 +428,16 @@ export default function ProfilIndex() {
 
               <View className="mt-8 gap-4">
                 <TextInput
+                  className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text-muted opacity-60"
+                  placeholder={t("profile.completion.email")}
+                  placeholderTextColor="#666666"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  editable={false}
+                />
+                <TextInput
                   className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
                   placeholder={t("profile.completion.firstName")}
                   placeholderTextColor="#666666"
@@ -447,86 +451,78 @@ export default function ProfilIndex() {
                   value={lastName}
                   onChangeText={setLastName}
                 />
-                <TextInput
-                  className="h-14 w-full rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
-                  placeholder={t("profile.completion.email")}
-                  placeholderTextColor="#666666"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
 
-                {requiresCompletionPhone && (
-                  <View>
-                    <Text className="mb-2 font-body text-xs text-flikk-text-muted">
-                      {t("profile.completion.phoneRequiredLabel")}
-                      <Text className="text-[#FF4D6D]"> *</Text>
-                    </Text>
-                    <View className="h-14 flex-row">
-                      <Pressable
-                        className="mr-3 min-w-[96px] flex-row items-center justify-center rounded-2xl border border-white/10 bg-flikk-card px-3"
-                        onPress={() =>
-                          setShowProfilePhoneCountryList((prev) => !prev)
-                        }
-                      >
-                        <Text className="font-body text-sm text-flikk-text">
-                          {COUNTRIES[profilePhoneCountryIndex].code}
-                        </Text>
-                        <Text className="ml-1 font-body text-sm text-flikk-text">
-                          {COUNTRIES[profilePhoneCountryIndex].dial}
-                        </Text>
-                        <Feather
-                          name="chevron-down"
-                          size={14}
-                          color="#B3B3B3"
-                          style={{ marginLeft: 4 }}
-                        />
-                      </Pressable>
-                      <TextInput
-                        className="flex-1 rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
-                        placeholder={t("payment.phonePlaceholder")}
-                        placeholderTextColor="#666666"
-                        keyboardType="phone-pad"
-                        value={profilePhoneLocalNumber}
-                        onChangeText={(value) =>
-                          setProfilePhoneLocalNumber(value.replace(/\D/g, ""))
-                        }
-                        selectionColor="#CCFF00"
+                <View>
+                  <Text className="mb-2 font-body text-xs text-flikk-text-muted">
+                    {t("payment.phonePlaceholder")}
+                    <Text className="text-[#FF4D6D]"> *</Text>
+                  </Text>
+                  <View className="h-14 flex-row">
+                    <Pressable
+                      className="mr-3 min-w-[96px] flex-row items-center justify-center rounded-2xl border border-white/10 bg-flikk-card px-3"
+                      onPress={() =>
+                        setShowProfilePhoneCountryList((prev) => !prev)
+                      }
+                    >
+                      <Text className="font-body text-sm text-flikk-text">
+                        {COUNTRIES[profilePhoneCountryIndex].code}
+                      </Text>
+                      <Text className="ml-1 font-body text-sm text-flikk-text">
+                        {COUNTRIES[profilePhoneCountryIndex].dial}
+                      </Text>
+                      <Feather
+                        name="chevron-down"
+                        size={14}
+                        color="#B3B3B3"
+                        style={{ marginLeft: 4 }}
                       />
-                    </View>
-
-                    {showProfilePhoneCountryList && (
-                      <View className="mt-2 rounded-2xl border border-white/10 bg-[#2A2A2A] p-1 shadow-lg">
-                        {COUNTRIES.map((country, index) => (
-                          <Pressable
-                            key={country.code}
-                            className={`flex-row items-center justify-between rounded-xl px-4 py-3 ${
-                              index === profilePhoneCountryIndex
-                                ? "bg-white/10"
-                                : ""
-                            }`}
-                            onPress={() => {
-                              setProfilePhoneCountryIndex(index);
-                              setShowProfilePhoneCountryList(false);
-                            }}
-                          >
-                            <Text className="font-body text-sm text-flikk-text">
-                              {country.code} {country.name}
-                            </Text>
-                            <Text className="font-body text-xs text-flikk-text-muted">
-                              {country.dial}
-                            </Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    )}
-
-                    <Text className="mt-2 text-xs text-flikk-text-muted">
-                      {t("profile.completion.phoneRequiredHint")}
-                    </Text>
+                    </Pressable>
+                    <TextInput
+                      className="flex-1 rounded-2xl border border-white/10 bg-flikk-card px-4 font-body text-base text-flikk-text"
+                      placeholder={t("payment.phonePlaceholder")}
+                      placeholderTextColor="#666666"
+                      keyboardType="phone-pad"
+                      value={profilePhoneLocalNumber}
+                      onChangeText={(value) =>
+                        setProfilePhoneLocalNumber(value.replace(/\D/g, ""))
+                      }
+                      selectionColor="#CCFF00"
+                    />
                   </View>
-                )}
+
+                  {showProfilePhoneCountryList && (
+                    <View className="mt-2 rounded-2xl border border-white/10 bg-[#2A2A2A] p-1 shadow-lg">
+                      {COUNTRIES.map((country, index) => (
+                        <Pressable
+                          key={country.code}
+                          className={`flex-row items-center justify-between rounded-xl px-4 py-3 ${
+                            index === profilePhoneCountryIndex
+                              ? "bg-white/10"
+                              : ""
+                          }`}
+                          onPress={() => {
+                            setProfilePhoneCountryIndex(index);
+                            setShowProfilePhoneCountryList(false);
+                          }}
+                        >
+                          <Text className="font-body text-sm text-flikk-text">
+                            {country.code} {country.name}
+                          </Text>
+                          <Text className="font-body text-xs text-flikk-text-muted">
+                            {country.dial}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+
+                  {!canSaveProfilePhone &&
+                    profilePhoneLocalNumber.length > 0 && (
+                      <Text className="mt-2 text-xs text-[#FF4D6D]">
+                        {t("profile.completion.phoneRequiredError")}
+                      </Text>
+                    )}
+                </View>
 
                 <View className="mt-4 flex-row items-center justify-between rounded-2xl border border-white/20 bg-white p-4">
                   <Text className="font-display text-base text-[#121212]">
@@ -737,13 +733,11 @@ export default function ProfilIndex() {
                   )}
                 </Pressable>
 
-                {requiresCompletionPhone &&
-                  profilePhoneLocalNumber.length > 0 &&
-                  !canSaveProfilePhone && (
-                    <Text className="mt-2 text-center font-body text-xs text-[#FF4D6D]">
-                      {t("profile.completion.phoneRequiredError")}
-                    </Text>
-                  )}
+                {profilePhoneLocalNumber.length > 0 && !canSaveProfilePhone && (
+                  <Text className="mt-2 text-center font-body text-xs text-[#FF4D6D]">
+                    {t("profile.completion.phoneRequiredError")}
+                  </Text>
+                )}
               </View>
               {/* Added spacer to ensure the keyboard doesn't cover the last field */}
               <View style={{ height: 100 }} />
@@ -1076,7 +1070,10 @@ export default function ProfilIndex() {
                 )}
               </Pressable>
 
-              <Pressable className="mt-4 items-center p-4" onPress={resetOtpSession}>
+              <Pressable
+                className="mt-4 items-center p-4"
+                onPress={resetOtpSession}
+              >
                 <Text className="font-body text-sm text-flikk-text-muted">
                   {t("profile.login.changeEmail")}
                 </Text>
@@ -1174,5 +1171,3 @@ function BenefitItem({
     </View>
   );
 }
-
-
