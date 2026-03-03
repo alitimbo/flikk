@@ -31,7 +31,6 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getAuth } from "@react-native-firebase/auth";
 import { useRouter } from "expo-router";
-import { CommentsSheet } from "@/components/features/comments-sheet";
 import { DeviceService } from "@/services/device/device-service";
 import { ViewService } from "@/services/firebase/view-service";
 import { PaymentService } from "@/services/firebase/payment-service";
@@ -50,7 +49,6 @@ interface FeedItemProps {
   onToggleFavorite?: () => void;
   onRequestNext?: (index: number) => void;
   onUserAction?: () => void;
-  onCommentsOpenChange?: (isOpen: boolean) => void;
   onPaymentOpenChange?: (isOpen: boolean) => void;
   onAddToCart?: () => Promise<void> | void;
   isInCart?: boolean;
@@ -97,7 +95,6 @@ export function FeedItem({
   onToggleFavorite,
   onRequestNext,
   onUserAction,
-  onCommentsOpenChange,
   onPaymentOpenChange,
   onAddToCart,
   isInCart,
@@ -132,7 +129,6 @@ export function FeedItem({
   const deliveryTranslateY = useRef(new Animated.Value(24)).current;
   const [isLaunchSuccessOpen, setIsLaunchSuccessOpen] = useState(false);
   const [isAuthRequiredOpen, setIsAuthRequiredOpen] = useState(false);
-  const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [commentCount, setCommentCount] = useState(
     publication.commentCount || 0,
   );
@@ -384,7 +380,6 @@ export function FeedItem({
       isFeedFocused &&
       isActive &&
       !isUserPaused &&
-      !isCommentsOpen &&
       !isPaymentOpen &&
       !isInfoOpen &&
       !isImagePreviewOpen
@@ -398,7 +393,6 @@ export function FeedItem({
     isActive,
     isFeedFocused,
     isUserPaused,
-    isCommentsOpen,
     isPaymentOpen,
     isGuaranteeOpen,
     isDeliveryOpen,
@@ -516,9 +510,15 @@ export function FeedItem({
 
   const handleCommentPress = useCallback(() => {
     onUserAction?.();
-    setIsCommentsOpen(true);
-    onCommentsOpenChange?.(true);
-  }, [onUserAction, onCommentsOpenChange]);
+    if (!publication.id) return;
+    router.push({
+      pathname: "/comments/[publicationId]",
+      params: {
+        publicationId: publication.id,
+        totalCount: String(commentCount),
+      },
+    });
+  }, [onUserAction, publication.id, router, commentCount]);
 
   const handleAddToCart = useCallback(async () => {
     const user = getAuth().currentUser;
@@ -705,7 +705,6 @@ export function FeedItem({
       {isActive &&
       isUserPaused &&
       !isPlaying &&
-      !isCommentsOpen &&
       !isPaymentOpen ? (
         <View
           pointerEvents="none"
@@ -1153,19 +1152,6 @@ export function FeedItem({
           </Pressable>
         </View>
       </Modal>
-
-      <CommentsSheet
-        publicationId={publication.id ?? ""}
-        isVisible={isCommentsOpen}
-        onClose={() => {
-          setIsCommentsOpen(false);
-          onCommentsOpenChange?.(false);
-        }}
-        totalCount={commentCount}
-        onCountChange={(delta) =>
-          setCommentCount((prev) => Math.max(0, prev + delta))
-        }
-      />
 
       <Modal
         visible={isGuaranteeOpen}

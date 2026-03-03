@@ -1,16 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
-  Keyboard,
   Modal,
-  PanResponder,
   Platform,
   Pressable,
   Text,
   TextInput,
   View,
-  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
@@ -27,9 +25,8 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import { SkeletonBlock } from "@/components/ui/Skeleton";
 import { useRouter } from "expo-router";
 
-type CommentsSheetProps = {
+type CommentsModalProps = {
   publicationId: string;
-  isVisible: boolean;
   onClose: () => void;
   totalCount?: number;
   onCountChange?: (delta: number) => void;
@@ -40,36 +37,39 @@ type ReplyTarget = {
   authorName?: string;
 };
 
-export function CommentsSheet({
+export function CommentsModal({
   publicationId,
-  isVisible,
   onClose,
   totalCount,
   onCountChange,
-}: CommentsSheetProps) {
+}: CommentsModalProps) {
   const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const inputRef = useRef<TextInput | null>(null);
   const [sort, setSort] = useState<CommentSort>("top");
   const [message, setMessage] = useState("");
   const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [sheetTranslateY, setSheetTranslateY] = useState(0);
   const [isAuthRequiredOpen, setIsAuthRequiredOpen] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [composerHeight, setComposerHeight] = useState(116);
 
   const authUser = getAuth().currentUser;
   const { data: userProfile } = useUserProfile(authUser?.uid);
 
-  const commentsQuery = usePublicationComments(publicationId, sort, isVisible);
+  const commentsQuery = usePublicationComments(publicationId, sort, true);
+  const refetchComments = commentsQuery.refetch;
   const comments = useMemo(
     () => commentsQuery.data?.pages.flatMap((page) => page.comments) ?? [],
     [commentsQuery.data],
   );
 
   const likesQuery = usePublicationCommentLikes(publicationId, authUser?.uid);
-  const likedTargets = likesQuery.data ?? new Set<string>();
+  const likedTargets = useMemo(
+    () => likesQuery.data ?? new Set<string>(),
+    [likesQuery.data],
+  );
 
   const authorName = useMemo(() => {
     if (userProfile?.isMerchant) {
@@ -90,33 +90,22 @@ export function CommentsSheet({
   }, []);
 
   useEffect(() => {
-    if (!isVisible) {
-      setSheetTranslateY(0);
-      setReplyTarget(null);
-      return;
-    }
     if (publicationId) {
-      void commentsQuery.refetch();
+      void refetchComments();
     }
-  }, [isVisible, publicationId, commentsQuery]);
+  }, [publicationId, refetchComments]);
 
   useEffect(() => {
     if (commentsQuery.isError && commentsQuery.error) {
       console.log("[Comments] Firestore error:", commentsQuery.error);
     }
-  }, [commentsQuery.isError, commentsQuery.error]);
+  }, [commentsQuery.error, commentsQuery.isError]);
 
-  useEffect(() => {
-    const showSub = Keyboard.addListener("keyboardDidShow", (event) => {
-      setKeyboardHeight(event.endCoordinates.height);
+  const handleReplyTarget = useCallback((target: ReplyTarget) => {
+    setReplyTarget(target);
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
     });
-    const hideSub = Keyboard.addListener("keyboardDidHide", () => {
-      setKeyboardHeight(0);
-    });
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
   }, []);
 
   const closeAuthRequired = useCallback(() => {
@@ -134,7 +123,6 @@ export function CommentsSheet({
     try {
       setIsSubmitting(true);
       const now = new Date();
-      // ✅ Vider l'input immédiatement (avant les appels Firestore)
       const currentReplyTarget = replyTarget;
       setMessage("");
       setReplyTarget(null);
@@ -268,209 +256,187 @@ export function CommentsSheet({
     sort,
   ]);
 
-  const sheetPanResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dy) > 8,
-        onPanResponderMove: (_, gesture) => {
-          if (gesture.dy > 0) {
-            setSheetTranslateY(gesture.dy);
-          }
-        },
-        onPanResponderRelease: (_, gesture) => {
-          if (gesture.dy > 80) {
-            onClose();
-          } else {
-            setSheetTranslateY(0);
-          }
-        },
-        onPanResponderTerminate: () => {
-          setSheetTranslateY(0);
-        },
-      }),
-    [onClose],
-  );
-
   const renderItem = useCallback(
     ({ item }: { item: Comment }) => (
       <CommentCard
         comment={item}
         likedTargets={likedTargets}
         publicationId={publicationId}
-        onReply={(target) => setReplyTarget(target)}
+        onReply={handleReplyTarget}
         onRequireAuth={openAuthRequired}
       />
     ),
-    [likedTargets, publicationId, openAuthRequired],
+    [likedTargets, publicationId, handleReplyTarget, openAuthRequired],
   );
+
+  const composerBottomInset = Math.max(insets.bottom, 12);
+  const listBottomInset = composerHeight + 20;
 
   return (
     <>
-      <Modal
-        visible={isVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={onClose}
-      >
-        <Pressable className="flex-1 bg-black/60" onPress={onClose} />
+      <View className="flex-1 bg-flikk-dark">
+        <View
+          className="border-b border-white/10 px-6 pb-3"
+          style={{ paddingTop: insets.top + 10 }}
+        >
+          <View className="mb-2 flex-row items-center justify-between">
+            <View>
+              <Text className="font-display text-lg text-flikk-text">
+                {t("comments.title")}
+              </Text>
+              <Text className="mt-1 text-xs text-flikk-text-muted">
+                {(totalCount ?? 0).toLocaleString()} {t("comments.countLabel")}
+              </Text>
+            </View>
+            <Pressable
+              onPress={onClose}
+              className="h-8 w-8 items-center justify-center rounded-full bg-white/10"
+            >
+              <Ionicons name="close" size={18} color="#FFFFFF" />
+            </Pressable>
+          </View>
+
+          <View className="mt-2 flex-row gap-3">
+            {(["top", "new"] as CommentSort[]).map((option) => {
+              const selected = sort === option;
+              return (
+                <Pressable
+                  key={option}
+                  onPress={() => setSort(option)}
+                  className={`rounded-full border px-4 py-2 ${
+                    selected
+                      ? "border-flikk-lime/40 bg-flikk-lime/20"
+                      : "border-white/10 bg-white/5"
+                  }`}
+                >
+                  <Text
+                    className={`font-display text-xs ${
+                      selected ? "text-flikk-lime" : "text-flikk-text-muted"
+                    }`}
+                  >
+                    {option === "top" ? t("comments.sortTop") : t("comments.sortNew")}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        <View className="flex-1">
+          {commentsQuery.isLoading ? (
+            <View className="px-6 pt-4">
+              <CommentsSkeleton />
+            </View>
+          ) : commentsQuery.isError ? (
+            <View className="items-center justify-center px-6 py-10">
+              <Text className="text-center text-sm text-flikk-text-muted">
+                {t("comments.error")}
+              </Text>
+              {__DEV__ && (
+                <Text className="mt-2 text-center text-[11px] text-[#FF4D6D]">
+                  {String(commentsQuery.error)}
+                </Text>
+              )}
+            </View>
+          ) : comments.length === 0 ? (
+            <View className="items-center justify-center px-6 py-10">
+              <Text className="text-sm text-flikk-text-muted">{t("comments.empty")}</Text>
+            </View>
+          ) : (
+            <FlashList
+              data={comments}
+              renderItem={renderItem}
+              keyExtractor={(item: Comment) => item.id ?? ""}
+              removeClippedSubviews
+              keyboardShouldPersistTaps="always"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{
+                paddingTop: 16,
+                paddingHorizontal: 24,
+                paddingBottom: listBottomInset,
+              }}
+              onEndReached={() => {
+                if (commentsQuery.hasNextPage) {
+                  commentsQuery.fetchNextPage();
+                }
+              }}
+              onEndReachedThreshold={0.6}
+              ListFooterComponent={
+                commentsQuery.isFetchingNextPage ? (
+                  <View className="items-center py-4">
+                    <ActivityIndicator color="#CCFF00" />
+                  </View>
+                ) : null
+              }
+            />
+          )}
+        </View>
+
         <KeyboardAvoidingView
-          className="absolute inset-x-0 bottom-0"
           behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 24 : 0}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
         >
           <View
-            className="w-full rounded-t-3xl border border-white/10 bg-flikk-card"
-            style={{
-              paddingBottom: insets.bottom + 12,
-              transform: [{ translateY: sheetTranslateY - keyboardHeight }],
-              maxHeight: "88%",
+            className="border-t border-white/10 bg-[#121212] px-6 pt-4"
+            style={{ paddingBottom: composerBottomInset }}
+            onLayout={(event) => {
+              const nextHeight = Math.ceil(event.nativeEvent.layout.height);
+              setComposerHeight((prev) => (prev === nextHeight ? prev : nextHeight));
             }}
-            {...sheetPanResponder.panHandlers}
           >
-            <View className="px-6 pt-4">
-              <View className="mb-3 h-1.5 w-12 self-center rounded-full bg-white/20" />
-              <View className="flex-row items-center justify-between">
-                <View>
-                  <Text className="font-display text-lg text-flikk-text">
-                    {t("comments.title")}
-                  </Text>
-                  <Text className="text-xs text-flikk-text-muted mt-1">
-                    {(totalCount ?? 0).toLocaleString()}{" "}
-                    {t("comments.countLabel")}
-                  </Text>
-                </View>
-                <Pressable
-                  onPress={onClose}
-                  className="h-8 w-8 items-center justify-center rounded-full bg-white/10"
-                >
-                  <Ionicons name="close" size={18} color="#FFFFFF" />
+            {replyTarget && (
+              <View className="mb-3 flex-row items-center justify-between rounded-2xl bg-white/5 px-3 py-2">
+                <Text className="text-xs text-flikk-text-muted">
+                  {t("comments.replyingTo")} {replyTarget.authorName || ""}
+                </Text>
+                <Pressable onPress={() => setReplyTarget(null)}>
+                  <Ionicons name="close" size={14} color="#FFFFFF" />
                 </Pressable>
               </View>
+            )}
 
-              <View className="mt-4 flex-row gap-3">
-                {(["top", "new"] as CommentSort[]).map((option) => {
-                  const selected = sort === option;
-                  return (
-                    <Pressable
-                      key={option}
-                      onPress={() => setSort(option)}
-                      className={`rounded-full px-4 py-2 ${
-                        selected
-                          ? "bg-flikk-lime/20 border border-flikk-lime/40"
-                          : "bg-white/5 border border-white/10"
-                      }`}
-                    >
-                      <Text
-                        className={`font-display text-xs ${
-                          selected ? "text-flikk-lime" : "text-flikk-text-muted"
-                        }`}
-                      >
-                        {option === "top"
-                          ? t("comments.sortTop")
-                          : t("comments.sortNew")}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-
-            <View className="mt-4 flex-1">
-              {commentsQuery.isLoading ? (
-                <View className="px-6">
-                  <CommentsSkeleton />
-                </View>
-              ) : commentsQuery.isError ? (
-                <View className="items-center justify-center px-6 py-10">
-                  <Text className="text-sm text-flikk-text-muted text-center">
-                    {t("comments.error")}
-                  </Text>
-                  {__DEV__ && (
-                    <Text className="mt-2 text-[11px] text-[#FF4D6D] text-center">
-                      {String(commentsQuery.error)}
-                    </Text>
-                  )}
-                </View>
-              ) : comments.length === 0 ? (
-                <View className="items-center justify-center px-6 py-10">
-                  <Text className="text-sm text-flikk-text-muted">
-                    {t("comments.empty")}
-                  </Text>
-                </View>
-              ) : (
-                <FlashList
-                  data={comments}
-                  renderItem={renderItem}
-                  keyExtractor={(item) => item.id ?? ""}
-                  estimatedItemSize={120}
-                  contentContainerStyle={{
-                    paddingHorizontal: 24,
-                    paddingBottom: 140,
+            <View className="flex-row items-center gap-3">
+              <View className="flex-1 rounded-2xl border border-white/10 bg-flikk-dark px-4 py-3">
+                <TextInput
+                  ref={inputRef}
+                  placeholder={t("comments.placeholder")}
+                  placeholderTextColor="#666666"
+                  value={message}
+                  onChangeText={setMessage}
+                  multiline
+                  editable={!isSubmitting}
+                  textAlignVertical="top"
+                  blurOnSubmit={false}
+                  style={{
+                    minHeight: 20,
+                    maxHeight: 120,
+                    padding: 0,
+                    color: "#FFFFFF",
+                    fontSize: 16,
                   }}
-                  onEndReached={() => {
-                    if (commentsQuery.hasNextPage) {
-                      commentsQuery.fetchNextPage();
-                    }
-                  }}
-                  onEndReachedThreshold={0.6}
-                  ListFooterComponent={
-                    commentsQuery.isFetchingNextPage ? (
-                      <View className="py-4 items-center">
-                        <ActivityIndicator color="#CCFF00" />
-                      </View>
-                    ) : null
-                  }
                 />
-              )}
-            </View>
-
-            <View className="border-t border-white/10 px-6 pt-4">
-              {replyTarget && (
-                <View className="mb-3 flex-row items-center justify-between rounded-2xl bg-white/5 px-3 py-2">
-                  <Text className="text-xs text-flikk-text-muted">
-                    {t("comments.replyingTo")} {replyTarget.authorName || ""}
-                  </Text>
-                  <Pressable onPress={() => setReplyTarget(null)}>
-                    <Ionicons name="close" size={14} color="#FFFFFF" />
-                  </Pressable>
-                </View>
-              )}
-
-              <View className="flex-row items-center gap-3">
-                <View className="flex-1 rounded-2xl border border-white/10 bg-flikk-dark px-4 py-3">
-                  <TextInput
-                    placeholder={t("comments.placeholder")}
-                    placeholderTextColor="#666666"
-                    className="font-body text-base text-flikk-text"
-                    value={message}
-                    onChangeText={setMessage}
-                    multiline
-                    editable={!isSubmitting}
-                    onFocus={() => setSheetTranslateY(0)}
-                  />
-                </View>
-                <Pressable
-                  onPress={handleSend}
-                  className={`h-11 w-11 items-center justify-center rounded-full ${
-                    message.trim() ? "bg-flikk-lime" : "bg-white/10"
-                  }`}
-                  disabled={isSubmitting || !message.trim()}
-                >
-                  {isSubmitting ? (
-                    <ActivityIndicator color="#121212" />
-                  ) : (
-                    <Ionicons
-                      name="send"
-                      size={18}
-                      color={message.trim() ? "#121212" : "#666666"}
-                    />
-                  )}
-                </Pressable>
               </View>
+              <Pressable
+                onPress={handleSend}
+                className={`h-11 w-11 items-center justify-center rounded-full ${
+                  message.trim() ? "bg-flikk-lime" : "bg-white/10"
+                }`}
+                disabled={isSubmitting || !message.trim()}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator color="#121212" />
+                ) : (
+                  <Ionicons
+                    name="send"
+                    size={18}
+                    color={message.trim() ? "#121212" : "#666666"}
+                  />
+                )}
+              </Pressable>
             </View>
           </View>
         </KeyboardAvoidingView>
-      </Modal>
+      </View>
 
       <Modal
         visible={isAuthRequiredOpen}
@@ -506,7 +472,6 @@ export function CommentsSheet({
     </>
   );
 }
-
 type CommentCardProps = {
   comment: Comment;
   publicationId: string;
@@ -874,3 +839,5 @@ function formatRelativeTime(value?: any) {
   if (minutes > 0) return `${minutes}m`;
   return `${seconds}s`;
 }
+
+

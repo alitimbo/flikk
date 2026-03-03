@@ -1,4 +1,3 @@
-import "react-native-gesture-handler";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useEffect, useState, useCallback } from "react";
@@ -15,7 +14,6 @@ import * as SplashScreen from "expo-splash-screen";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Toast from "react-native-toast-message";
 import { useNotificationToast } from "@/hooks/useNotificationToast";
-import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 
 SplashScreen.preventAutoHideAsync(); // ← Appel global, très tôt
 
@@ -103,20 +101,26 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>
       <QueryClientProvider client={queryClient}>
         <SafeAreaProvider>
-          <BottomSheetModalProvider>
-            <View className="flex-1">
-              <Stack screenOptions={{ headerShown: false }} />
+          <View className="flex-1">
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen
+                name="comments/[publicationId]"
+                options={{
+                  presentation: "modal",
+                  animation: "slide_from_bottom",
+                }}
+              />
+            </Stack>
 
-              <Toast />
+            <Toast />
 
-              {showCustomSplash && (
-                <CustomSplash
-                  onFinish={() => setShowCustomSplash(false)}
-                  // Option : passer firebaseReady si tu veux conditionner l'animation
-                />
-              )}
-            </View>
-          </BottomSheetModalProvider>
+            {showCustomSplash && (
+              <CustomSplash
+                onFinish={() => setShowCustomSplash(false)}
+                // Option : passer firebaseReady si tu veux conditionner l'animation
+              />
+            )}
+          </View>
         </SafeAreaProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>

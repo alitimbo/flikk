@@ -172,7 +172,6 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
               void fetchNextPage();
             }
           }}
-          onCommentsOpenChange={(isOpen) => setIsScrollLocked(isOpen)}
           onPaymentOpenChange={(isOpen) => setIsScrollLocked(isOpen)}
           cartCount={cartCount}
           isInCart={inCartSet.has(item.id ?? "")}
