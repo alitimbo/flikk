@@ -3,15 +3,15 @@ import { View, Text, Pressable, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
-import { getAuth } from "@react-native-firebase/auth";
 import { useOrderById } from "@/hooks/useOrderById";
 import { resolveOrderStatus } from "@/utils/order-status";
+import { useAuthUser } from "@/hooks/useAuthUser";
 
 export default function PurchaseDetailsScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const authUser = getAuth().currentUser;
+  const authUser = useAuthUser();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: order, isLoading } = useOrderById(id);
 

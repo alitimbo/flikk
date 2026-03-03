@@ -16,7 +16,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { getAuth } from "@react-native-firebase/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { Comment, CommentSort } from "@/types";
 import { CommentService } from "@/services/firebase/comment-service";
@@ -25,6 +24,7 @@ import { useCommentReplies } from "@/hooks/useCommentReplies";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { SkeletonBlock } from "@/components/ui/Skeleton";
 import { useRouter } from "expo-router";
+import { useAuthUser } from "@/hooks/useAuthUser";
 
 type CommentsModalProps = {
   publicationId: string;
@@ -57,7 +57,7 @@ export function CommentsModal({
   const [composerHeight, setComposerHeight] = useState(116);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
-  const authUser = getAuth().currentUser;
+  const authUser = useAuthUser();
   const { data: userProfile } = useUserProfile(authUser?.uid);
 
   const commentsQuery = usePublicationComments(publicationId, sort, true);

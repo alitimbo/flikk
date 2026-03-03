@@ -13,11 +13,11 @@ import { FeedItem } from "@/components/feed/FeedItem";
 import { useFeed } from "@/hooks/useFeed";
 import { useFocusEffect } from "expo-router";
 import { SkeletonFeedItem } from "@/components/ui/Skeleton";
-import { getAuth, onAuthStateChanged } from "@react-native-firebase/auth";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useCart } from "@/hooks/useCart";
 import { MMKVStorage } from "@/storage/mmkv";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
+import { useAuthUid } from "@/hooks/useAuthUser";
 
 const TAB_BAR_HEIGHT = 72;
 const AUTO_ADVANCE_IDLE_MS = 3000;
@@ -31,9 +31,7 @@ type VideoFeedProps = {
 export default function VideoFeed({ initialId }: VideoFeedProps) {
   const insets = useSafeAreaInsets();
   const { height: screenHeight } = useWindowDimensions();
-  const [authUid, setAuthUid] = useState<string | undefined>(
-    getAuth().currentUser?.uid,
-  );
+  const authUid = useAuthUid();
   const {
     publications,
     fetchNextPage,
@@ -55,13 +53,6 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
   const pendingAdvanceIndexRef = useRef<number | null>(null);
   const initialTargetRef = useRef<string | null>(initialId ?? null);
   const initialScrollDoneRef = useRef(false);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(getAuth(), (user) => {
-      setAuthUid(user?.uid);
-    });
-    return unsubscribe;
-  }, []);
 
   useEffect(() => {
     if (initialId) {

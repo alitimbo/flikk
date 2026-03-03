@@ -14,16 +14,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { getAuth } from "@react-native-firebase/auth";
 import Toast from "react-native-toast-message";
 import { useCart } from "@/hooks/useCart";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useAuthUid } from "@/hooks/useAuthUser";
 
 export function CartScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const uid = getAuth().currentUser?.uid;
+  const uid = useAuthUid();
   const { data: userProfile } = useUserProfile(uid);
   const {
     items,

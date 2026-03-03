@@ -10,18 +10,18 @@ import {
 import { FlashList } from "@shopify/flash-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { getAuth } from "@react-native-firebase/auth";
 import { useOrders } from "@/hooks/useOrders";
 import type { Order } from "@/types";
 import { SkeletonBlock } from "@/components/ui/Skeleton";
 import { useRouter } from "expo-router";
 import { resolveOrderStatus } from "@/utils/order-status";
+import { useAuthUser } from "@/hooks/useAuthUser";
 
 export function OrdersScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const authUser = getAuth().currentUser;
+  const authUser = useAuthUser();
   const {
     data,
     isLoading,
