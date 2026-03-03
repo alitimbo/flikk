@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Dimensions,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -20,7 +22,6 @@ import { Comment, CommentSort } from "@/types";
 import { CommentService } from "@/services/firebase/comment-service";
 import { usePublicationComments } from "@/hooks/usePublicationComments";
 import { useCommentReplies } from "@/hooks/useCommentReplies";
-import { usePublicationCommentLikes } from "@/hooks/usePublicationCommentLikes";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { SkeletonBlock } from "@/components/ui/Skeleton";
 import { useRouter } from "expo-router";
@@ -54,6 +55,7 @@ export function CommentsModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAuthRequiredOpen, setIsAuthRequiredOpen] = useState(false);
   const [composerHeight, setComposerHeight] = useState(116);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const authUser = getAuth().currentUser;
   const { data: userProfile } = useUserProfile(authUser?.uid);
@@ -63,12 +65,6 @@ export function CommentsModal({
   const comments = useMemo(
     () => commentsQuery.data?.pages.flatMap((page) => page.comments) ?? [],
     [commentsQuery.data],
-  );
-
-  const likesQuery = usePublicationCommentLikes(publicationId, authUser?.uid);
-  const likedTargets = useMemo(
-    () => likesQuery.data ?? new Set<string>(),
-    [likesQuery.data],
   );
 
   const authorName = useMemo(() => {
@@ -100,6 +96,29 @@ export function CommentsModal({
       console.log("[Comments] Firestore error:", commentsQuery.error);
     }
   }, [commentsQuery.error, commentsQuery.isError]);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener("keyboardDidShow", (event) => {
+      const windowHeight = Dimensions.get("window").height;
+      const frameKeyboardHeight = Math.max(
+        0,
+        windowHeight - event.endCoordinates.screenY,
+      );
+      const effectiveKeyboardHeight = Math.max(
+        event.endCoordinates.height,
+        frameKeyboardHeight,
+      );
+      setKeyboardHeight(effectiveKeyboardHeight);
+    });
+    const hideSub = Keyboard.addListener("keyboardDidHide", () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const handleReplyTarget = useCallback((target: ReplyTarget) => {
     setReplyTarget(target);
@@ -260,17 +279,28 @@ export function CommentsModal({
     ({ item }: { item: Comment }) => (
       <CommentCard
         comment={item}
-        likedTargets={likedTargets}
-        publicationId={publicationId}
         onReply={handleReplyTarget}
-        onRequireAuth={openAuthRequired}
       />
     ),
-    [likedTargets, publicationId, handleReplyTarget, openAuthRequired],
+    [handleReplyTarget],
   );
 
-  const composerBottomInset = Math.max(insets.bottom, 12);
-  const listBottomInset = composerHeight + 20;
+  const androidExtraBottomGap = Platform.OS === "android" ? 12 : 0;
+  const baseComposerBottomInset =
+    Platform.OS === "android" ? Math.max(insets.bottom, 24) : Math.max(insets.bottom, 12);
+  const androidKeyboardInset =
+    Platform.OS === "android" ? Math.max(0, keyboardHeight - insets.bottom) : 0;
+  const androidKeyboardLift =
+    Platform.OS === "android" && keyboardHeight > 0
+      ? Math.max(10, Math.min(28, Math.round(keyboardHeight * 0.08)))
+      : 0;
+  const composerBottomInset =
+    baseComposerBottomInset +
+    androidExtraBottomGap +
+    androidKeyboardInset +
+    androidKeyboardLift;
+  const listBottomInset =
+    composerHeight + baseComposerBottomInset + androidExtraBottomGap + 20;
 
   return (
     <>
@@ -374,65 +404,68 @@ export function CommentsModal({
 
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 16}
         >
           <View
             className="border-t border-white/10 bg-[#121212] px-6 pt-4"
             style={{ paddingBottom: composerBottomInset }}
-            onLayout={(event) => {
-              const nextHeight = Math.ceil(event.nativeEvent.layout.height);
-              setComposerHeight((prev) => (prev === nextHeight ? prev : nextHeight));
-            }}
           >
-            {replyTarget && (
-              <View className="mb-3 flex-row items-center justify-between rounded-2xl bg-white/5 px-3 py-2">
-                <Text className="text-xs text-flikk-text-muted">
-                  {t("comments.replyingTo")} {replyTarget.authorName || ""}
-                </Text>
-                <Pressable onPress={() => setReplyTarget(null)}>
-                  <Ionicons name="close" size={14} color="#FFFFFF" />
+            <View
+              onLayout={(event) => {
+                const nextHeight = Math.ceil(event.nativeEvent.layout.height);
+                setComposerHeight((prev) => (prev === nextHeight ? prev : nextHeight));
+              }}
+            >
+              {replyTarget && (
+                <View className="mb-3 flex-row items-center justify-between rounded-2xl bg-white/5 px-3 py-2">
+                  <Text className="text-xs text-flikk-text-muted">
+                    {t("comments.replyingTo")} {replyTarget.authorName || ""}
+                  </Text>
+                  <Pressable onPress={() => setReplyTarget(null)}>
+                    <Ionicons name="close" size={14} color="#FFFFFF" />
+                  </Pressable>
+                </View>
+              )}
+
+              <View className="flex-row items-center gap-3">
+                <View className="flex-1 rounded-2xl border border-white/10 bg-flikk-dark px-4 py-3">
+                  <TextInput
+                    ref={inputRef}
+                    placeholder={t("comments.placeholder")}
+                    placeholderTextColor="#666666"
+                    value={message}
+                    onChangeText={setMessage}
+                    multiline
+                    editable={!isSubmitting}
+                    textAlignVertical="top"
+                    blurOnSubmit={false}
+                    style={{
+                      minHeight: 20,
+                      maxHeight: 120,
+                      padding: 0,
+                      color: "#FFFFFF",
+                      fontSize: 16,
+                    }}
+                  />
+                </View>
+                <Pressable
+                  onPress={handleSend}
+                  className={`h-11 w-11 items-center justify-center rounded-full ${
+                    message.trim() ? "bg-flikk-lime" : "bg-white/10"
+                  }`}
+                  disabled={isSubmitting || !message.trim()}
+                >
+                  {isSubmitting ? (
+                    <ActivityIndicator color="#121212" />
+                  ) : (
+                    <Ionicons
+                      name="send"
+                      size={18}
+                      color={message.trim() ? "#121212" : "#666666"}
+                    />
+                  )}
                 </Pressable>
               </View>
-            )}
-
-            <View className="flex-row items-center gap-3">
-              <View className="flex-1 rounded-2xl border border-white/10 bg-flikk-dark px-4 py-3">
-                <TextInput
-                  ref={inputRef}
-                  placeholder={t("comments.placeholder")}
-                  placeholderTextColor="#666666"
-                  value={message}
-                  onChangeText={setMessage}
-                  multiline
-                  editable={!isSubmitting}
-                  textAlignVertical="top"
-                  blurOnSubmit={false}
-                  style={{
-                    minHeight: 20,
-                    maxHeight: 120,
-                    padding: 0,
-                    color: "#FFFFFF",
-                    fontSize: 16,
-                  }}
-                />
-              </View>
-              <Pressable
-                onPress={handleSend}
-                className={`h-11 w-11 items-center justify-center rounded-full ${
-                  message.trim() ? "bg-flikk-lime" : "bg-white/10"
-                }`}
-                disabled={isSubmitting || !message.trim()}
-              >
-                {isSubmitting ? (
-                  <ActivityIndicator color="#121212" />
-                ) : (
-                  <Ionicons
-                    name="send"
-                    size={18}
-                    color={message.trim() ? "#121212" : "#666666"}
-                  />
-                )}
-              </Pressable>
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -474,70 +507,21 @@ export function CommentsModal({
 }
 type CommentCardProps = {
   comment: Comment;
-  publicationId: string;
-  likedTargets: Set<string>;
   onReply: (target: ReplyTarget) => void;
-  onRequireAuth: () => void;
 };
 
 function CommentCard({
   comment,
-  publicationId,
-  likedTargets,
   onReply,
-  onRequireAuth,
 }: CommentCardProps) {
   const { t } = useTranslation();
-  const authUser = getAuth().currentUser;
   const [showReplies, setShowReplies] = useState(false);
-  const [isLikePending, setIsLikePending] = useState(false);
-  const [localLiked, setLocalLiked] = useState<boolean>(
-    likedTargets.has(comment.id ?? ""),
-  );
-  const [likeCount, setLikeCount] = useState<number>(
-    Math.max(0, comment.likeCount ?? 0),
-  );
 
   const repliesQuery = useCommentReplies(comment.id ?? "", showReplies);
   const replies = useMemo(
     () => repliesQuery.data?.pages.flatMap((page) => page.comments) ?? [],
     [repliesQuery.data],
   );
-
-  const handleLike = useCallback(async () => {
-    if (!authUser || !comment.id) {
-      onRequireAuth();
-      return;
-    }
-    try {
-      setIsLikePending(true);
-      if (localLiked) {
-        await CommentService.unlikeTarget(
-          publicationId,
-          authUser.uid,
-          comment.id,
-        );
-        setLocalLiked(false);
-        setLikeCount((prev) => Math.max(0, prev - 1));
-      } else {
-        await CommentService.likeTarget(
-          publicationId,
-          authUser.uid,
-          comment.id,
-        );
-        setLocalLiked(true);
-        setLikeCount((prev) => prev + 1);
-      }
-    } finally {
-      setIsLikePending(false);
-    }
-  }, [authUser, comment.id, localLiked, publicationId, onRequireAuth]);
-
-  useEffect(() => {
-    if (comment.id) {
-      setLocalLiked(likedTargets.has(comment.id));
-    }
-  }, [comment.id, likedTargets]);
 
   return (
     <View className="mb-5">
@@ -620,14 +604,7 @@ function CommentCard({
             <RepliesSkeleton />
           ) : (
             replies.map((reply) => (
-              <ReplyCard
-                key={reply.id}
-                reply={reply}
-                publicationId={publicationId}
-                likedTargets={likedTargets}
-                parentId={comment.id ?? ""}
-                onRequireAuth={onRequireAuth}
-              />
+              <ReplyCard key={reply.id} reply={reply} />
             ))
           )}
           {repliesQuery.hasNextPage && (
@@ -648,65 +625,10 @@ function CommentCard({
 
 type ReplyCardProps = {
   reply: Comment;
-  publicationId: string;
-  likedTargets: Set<string>;
-  parentId: string;
-  onRequireAuth: () => void;
 };
 
-function ReplyCard({
-  reply,
-  publicationId,
-  likedTargets,
-  parentId,
-  onRequireAuth,
-}: ReplyCardProps) {
+function ReplyCard({ reply }: ReplyCardProps) {
   const { t } = useTranslation();
-  const authUser = getAuth().currentUser;
-  const [isLikePending, setIsLikePending] = useState(false);
-  const [localLiked, setLocalLiked] = useState<boolean>(
-    likedTargets.has(reply.id ?? ""),
-  );
-  const [likeCount, setLikeCount] = useState<number>(
-    Math.max(0, reply.likeCount ?? 0),
-  );
-
-  const handleLike = useCallback(async () => {
-    if (!authUser || !reply.id) {
-      onRequireAuth();
-      return;
-    }
-    try {
-      setIsLikePending(true);
-      if (localLiked) {
-        await CommentService.unlikeTarget(
-          publicationId,
-          authUser.uid,
-          reply.id,
-          parentId,
-        );
-        setLocalLiked(false);
-        setLikeCount((prev) => Math.max(0, prev - 1));
-      } else {
-        await CommentService.likeTarget(
-          publicationId,
-          authUser.uid,
-          reply.id,
-          parentId,
-        );
-        setLocalLiked(true);
-        setLikeCount((prev) => prev + 1);
-      }
-    } finally {
-      setIsLikePending(false);
-    }
-  }, [authUser, reply.id, localLiked, publicationId, parentId, onRequireAuth]);
-
-  useEffect(() => {
-    if (reply.id) {
-      setLocalLiked(likedTargets.has(reply.id));
-    }
-  }, [reply.id, likedTargets]);
 
   return (
     <View className="mb-4 flex-row gap-3">
@@ -726,24 +648,6 @@ function ReplyCard({
           </Text>
         </View>
         <Text className="mt-1 text-xs text-flikk-text-muted">{reply.text}</Text>
-        <Pressable className="mt-2 flex-row items-center gap-1">
-          {/*
-          <Pressable
-            className="flex-row items-center gap-1"
-            onPress={handleLike}
-            disabled={isLikePending}
-          >
-            <Ionicons
-              name={localLiked ? "heart" : "heart-outline"}
-              size={12}
-              color={localLiked ? "#FF4D6D" : "#B3B3B3"}
-            />
-            <Text className="text-[10px] text-flikk-text-muted">
-              {likeCount}
-            </Text>
-          </Pressable>
-          */}
-        </Pressable>
       </View>
     </View>
   );

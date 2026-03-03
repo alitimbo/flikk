@@ -307,6 +307,7 @@
     "merchantOnly": "This area is for merchants only.",
     "empty": "No orders yet",
     "auth": "Sign in to see your purchases.",
+    "authCta": "Go to Profile",
     "unknown": "Product",
     "statusPaid": "Paid",
     "statusDelivered": "Delivered",
@@ -326,6 +327,7 @@
   "cart": {
     "title": "Cart",
     "auth": "Sign in to access your cart.",
+    "authCta": "Go to Profile",
     "empty": "Your cart is empty",
     "unknownMerchant": "Merchant",
     "unavailable": "Currently unavailable",

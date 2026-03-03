@@ -307,6 +307,7 @@
     "merchantOnly": "Cette section est reservee aux marchands.",
     "empty": "Aucune commande pour le moment",
     "auth": "Connecte-toi pour voir tes achats.",
+    "authCta": "Aller au Profil",
     "unknown": "Produit",
     "statusPaid": "Payee",
     "statusDelivered": "Livree",
@@ -326,6 +327,7 @@
   "cart": {
     "title": "Panier",
     "auth": "Connecte-toi pour acceder a ton panier.",
+    "authCta": "Aller au Profil",
     "empty": "Ton panier est vide",
     "unknownMerchant": "Marchand",
     "unavailable": "Indisponible pour le moment",

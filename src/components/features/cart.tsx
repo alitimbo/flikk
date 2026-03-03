@@ -132,6 +132,14 @@ export function CartScreen() {
           <Text className="text-center font-display text-lg text-flikk-text">
             {t("cart.auth")}
           </Text>
+          <Pressable
+            className="mt-6 h-12 min-w-[180px] items-center justify-center rounded-full bg-flikk-lime px-6"
+            onPress={() => router.push("/(tabs)/profil")}
+          >
+            <Text className="font-display text-base text-flikk-dark">
+              {t("cart.authCta")}
+            </Text>
+          </Pressable>
         </View>
       </View>
     );
