@@ -344,5 +344,9 @@
     "addedBody": "Product added to your cart.",
     "addErrorTitle": "Unable to add",
     "addErrorBody": "Unable to add this product right now."
+  },
+  "network": {
+    "offline": "You are offline. Check your internet connection.",
+    "unstable": "Your connection is unstable. Video quality may drop."
   }
 }

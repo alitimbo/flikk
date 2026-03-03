@@ -18,6 +18,7 @@ import { useCart } from "@/hooks/useCart";
 import { MMKVStorage } from "@/storage/mmkv";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { useAuthUid } from "@/hooks/useAuthUser";
+import { useNetworkQuality } from "@/hooks/useNetworkQuality";
 
 const TAB_BAR_HEIGHT = 72;
 const AUTO_ADVANCE_IDLE_MS = 3000;
@@ -32,6 +33,9 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
   const insets = useSafeAreaInsets();
   const { height: screenHeight } = useWindowDimensions();
   const authUid = useAuthUid();
+  const networkQuality = useNetworkQuality();
+  const isOffline = networkQuality === "offline";
+  const isAutoAdvanceAllowed = networkQuality === "good";
   const {
     publications,
     fetchNextPage,
@@ -146,6 +150,7 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
             lastInteractionRef.current = Date.now();
           }}
           onRequestNext={(currentIndex) => {
+            if (!isAutoAdvanceAllowed) return;
             const idleFor = Date.now() - (lastInteractionRef.current || 0);
             if (idleFor < AUTO_ADVANCE_IDLE_MS) return;
 
@@ -163,6 +168,7 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
               void fetchNextPage();
             }
           }}
+          networkQuality={networkQuality}
           onPaymentOpenChange={(isOpen) => setIsScrollLocked(isOpen)}
           cartCount={cartCount}
           isInCart={inCartSet.has(item.id ?? "")}
@@ -180,6 +186,7 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
       isPending,
       toggleFavorite,
       publications.length,
+      isAutoAdvanceAllowed,
       hasNextPage,
       isFetchingNextPage,
       fetchNextPage,
@@ -190,6 +197,7 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
       addToCart,
       isFeedFocused,
       isProductCardCollapsed,
+      networkQuality,
       toggleProductCardCollapsed,
     ],
   );
@@ -204,6 +212,7 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
       cartCount,
       isFeedFocused,
       isProductCardCollapsed,
+      networkQuality,
     }),
     [
       activeId,
@@ -214,8 +223,17 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
       cartCount,
       isFeedFocused,
       isProductCardCollapsed,
+      networkQuality,
     ],
   );
+
+  const initialTargetIndex = useMemo(() => {
+    if (!initialId) return -1;
+    return publications.findIndex((item) => item.id === initialId);
+  }, [initialId, publications]);
+
+  const isWaitingForInitialTarget =
+    !!initialId && !initialScrollDoneRef.current && initialTargetIndex < 0;
 
   const attemptInitialScroll = useCallback(() => {
     if (publications.length === 0) return;
@@ -237,7 +255,7 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
         });
         return;
       }
-      if (hasNextPage && !isFetchingNextPage) {
+      if (!isOffline && hasNextPage && !isFetchingNextPage) {
         void fetchNextPage();
       }
       return;
@@ -250,13 +268,19 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
   }, [
     publications,
     setActiveIdSafe,
+    isOffline,
     hasNextPage,
     isFetchingNextPage,
     fetchNextPage,
   ]);
 
   useEffect(() => {
-    if (isWaitingForInitialTarget && hasNextPage && !isFetchingNextPage) {
+    if (
+      isWaitingForInitialTarget &&
+      !isOffline &&
+      hasNextPage &&
+      !isFetchingNextPage
+    ) {
       void fetchNextPage();
     } else {
       attemptInitialScroll();
@@ -265,6 +289,7 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
     attemptInitialScroll,
     publications.length,
     isWaitingForInitialTarget,
+    isOffline,
     hasNextPage,
     isFetchingNextPage,
     fetchNextPage,
@@ -282,14 +307,6 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
       }, 80);
     }
   }, [initialId, publications, setActiveIdSafe]);
-
-  const initialTargetIndex = useMemo(() => {
-    if (!initialId) return -1;
-    return publications.findIndex((item) => item.id === initialId);
-  }, [initialId, publications]);
-
-  const isWaitingForInitialTarget =
-    !!initialId && !initialScrollDoneRef.current && initialTargetIndex < 0;
 
   useFocusEffect(
     useCallback(() => {
@@ -340,7 +357,7 @@ export default function VideoFeed({ initialId }: VideoFeedProps) {
           decelerationRate="fast"
           scrollEnabled={!isScrollLocked}
           onEndReached={() => {
-            if (hasNextPage && !isFetchingNextPage) {
+            if (!isOffline && hasNextPage && !isFetchingNextPage) {
               void fetchNextPage();
             }
           }}

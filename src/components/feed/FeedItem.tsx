@@ -38,6 +38,7 @@ import { usePaymentStatus } from "@/hooks/usePaymentStatus";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import type { PaymentStatus } from "@/types";
 import Toast from "react-native-toast-message";
+import type { NetworkQuality } from "@/hooks/useNetworkQuality";
 
 interface FeedItemProps {
   publication: Publication;
@@ -50,6 +51,7 @@ interface FeedItemProps {
   onRequestNext?: (index: number) => void;
   onUserAction?: () => void;
   onPaymentOpenChange?: (isOpen: boolean) => void;
+  networkQuality?: NetworkQuality;
   onAddToCart?: () => Promise<void> | void;
   isInCart?: boolean;
   isAddToCartPending?: boolean;
@@ -96,6 +98,7 @@ export function FeedItem({
   onRequestNext,
   onUserAction,
   onPaymentOpenChange,
+  networkQuality = "good",
   onAddToCart,
   isInCart,
   isAddToCartPending,
@@ -155,6 +158,7 @@ export function FeedItem({
     () => publication.hlsUrl || publication.videoUrl,
     [publication.hlsUrl, publication.videoUrl],
   );
+  const isNetworkOffline = networkQuality === "offline";
   const initialCoverMode = shouldUseCoverByPublication(publication);
   const videoContentFit: "cover" | "contain" = isVerticalVideo
     ? "cover"
@@ -196,6 +200,30 @@ export function FeedItem({
     // FlashList can recycle item components. Reset fit mode when source changes.
     setIsVerticalVideo(initialCoverMode);
   }, [videoUri, initialCoverMode]);
+
+  useEffect(() => {
+    if (networkQuality === "good") {
+      player.bufferOptions = {
+        preferredForwardBufferDuration: 5,
+        minBufferForPlayback: 1,
+        maxBufferBytes: 5 * 1024 * 1024,
+      };
+      return;
+    }
+    if (networkQuality === "unstable") {
+      player.bufferOptions = {
+        preferredForwardBufferDuration: 3,
+        minBufferForPlayback: 1,
+        maxBufferBytes: 3 * 1024 * 1024,
+      };
+      return;
+    }
+    player.bufferOptions = {
+      preferredForwardBufferDuration: 1,
+      minBufferForPlayback: 1,
+      maxBufferBytes: 1 * 1024 * 1024,
+    };
+  }, [player, networkQuality]);
 
   useEffect(() => {
     const timeSub = player.addListener("timeUpdate", (payload) => {
@@ -313,7 +341,7 @@ export function FeedItem({
 
   // Handle Play/Pause and View Tracking
   useEffect(() => {
-    if (isActive && isFeedFocused) {
+    if (isActive && isFeedFocused && !isNetworkOffline) {
       // Start 3s timer for view increment
       if (!viewTracked) {
         timerRef.current = setTimeout(() => {
@@ -334,7 +362,14 @@ export function FeedItem({
         clearTimeout(timerRef.current);
       }
     };
-  }, [isActive, isFeedFocused, publication.id, viewTracked, deviceId]);
+  }, [
+    isActive,
+    isFeedFocused,
+    isNetworkOffline,
+    publication.id,
+    viewTracked,
+    deviceId,
+  ]);
 
   useEffect(() => {
     if (!videoUri) return;
@@ -379,6 +414,7 @@ export function FeedItem({
     if (
       isFeedFocused &&
       isActive &&
+      !isNetworkOffline &&
       !isUserPaused &&
       !isPaymentOpen &&
       !isInfoOpen &&
@@ -392,6 +428,7 @@ export function FeedItem({
   }, [
     isActive,
     isFeedFocused,
+    isNetworkOffline,
     isUserPaused,
     isPaymentOpen,
     isGuaranteeOpen,
@@ -402,6 +439,10 @@ export function FeedItem({
 
   const togglePlayback = useCallback(() => {
     onUserAction?.();
+    if (isNetworkOffline) {
+      player.pause();
+      return;
+    }
     if (player.playing) {
       player.pause();
       setIsUserPaused(true);
@@ -409,7 +450,7 @@ export function FeedItem({
       player.play();
       setIsUserPaused(false);
     }
-  }, [player, onUserAction]);
+  }, [player, isNetworkOffline, onUserAction]);
 
   const clamp = (value: number, min: number, max: number) =>
     Math.max(min, Math.min(max, value));
@@ -446,19 +487,19 @@ export function FeedItem({
           onUserAction?.();
           seekToX(evt.nativeEvent.locationX);
           setIsScrubbing(false);
-          if (wasPlayingRef.current) {
+          if (wasPlayingRef.current && !isNetworkOffline) {
             player.play();
           }
         },
         onPanResponderTerminate: () => {
           onUserAction?.();
           setIsScrubbing(false);
-          if (wasPlayingRef.current) {
+          if (wasPlayingRef.current && !isNetworkOffline) {
             player.play();
           }
         },
       }),
-    [player, seekToX, onUserAction],
+    [player, seekToX, onUserAction, isNetworkOffline],
   );
 
   const viewCountValue =
@@ -475,6 +516,8 @@ export function FeedItem({
     (value?: string | null) => (value ?? "").replace(/\D/g, ""),
     [],
   );
+  const authUser = getAuth().currentUser;
+  const { data: userProfile } = useUserProfile(authUser?.uid);
 
   const openPaymentSheet = useCallback(() => {
     const user = getAuth().currentUser;
@@ -584,9 +627,6 @@ export function FeedItem({
     setIsPaymentSubmitting(false);
     onPaymentOpenChange?.(false);
   }, [onPaymentOpenChange]);
-
-  const authUser = getAuth().currentUser;
-  const { data: userProfile } = useUserProfile(authUser?.uid);
   const statusQuery = usePaymentStatus(
     paymentReference,
     isPaymentOpen && paymentStatus === "pending",

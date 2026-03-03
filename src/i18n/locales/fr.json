@@ -344,5 +344,9 @@
     "addedBody": "Le produit a ete ajoute a votre panier.",
     "addErrorTitle": "Ajout impossible",
     "addErrorBody": "Impossible d'ajouter ce produit pour le moment."
+  },
+  "network": {
+    "offline": "Vous etes hors ligne. Verifiez votre connexion internet.",
+    "unstable": "Votre connexion est instable. La qualite video peut baisser."
   }
 }

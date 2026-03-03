@@ -14,6 +14,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Toast from "react-native-toast-message";
 import { useNotificationToast } from "@/hooks/useNotificationToast";
+import { NetworkQualityBanner } from "@/components/ui/NetworkQualityBanner";
 
 SplashScreen.preventAutoHideAsync(); // ← Appel global, très tôt
 
@@ -112,6 +113,7 @@ export default function RootLayout() {
               />
             </Stack>
 
+            <NetworkQualityBanner />
             <Toast />
 
             {showCustomSplash && (
